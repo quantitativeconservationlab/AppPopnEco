@@ -34,26 +34,24 @@ getwd()
 install.packages( "tidyverse" ) #actually a collection of packages 
 # including dplyr, lubridate, tidyr, ggplot2 and more.
 
-install.packages( "unmarked" )
+#install.packages( "unmarked" )
 install.packages( "sf" )
 install.packages( "rgdal")
 install.packages( "raster" )
-install.packages("remotes")
-remotes::install_github("juoe/spatialtools")
 
 # load packages:
 library( tidyverse ) 
-library( unmarked )
+#library( unmarked )
 library( sf )
+library( sp )
 library( rgdal )
 library( raster )
-
-# set datadir 
-datadir <- "C:/Users/jencruz/Google Drive/QCLabShared/Data/"
-
-getwd()  
+## end of package load ###############
 ###################################################################
 #### Load or create data -----------------------------------------
+# set directory where your data are:
+datadir <- "C:/Users/jencruz/Google Drive/QCLabShared/Data/"
+
 # load NCA polygon
 NCA <-  st_read( paste( datadir, "NCA/GIS_NCA_IDARNGpgsSampling/BOPNCA_Boundary.shp", 
         sep = "" ), quiet = TRUE )
@@ -67,17 +65,29 @@ climraw <- read.csv( file = paste( datadir, "Climate/TwinFallsClimateData.csv", 
 head( climraw )
 
 #import sagebrush layer 
-habpath <- paste( datadir, 
-"NLCD_LandCoverChange_Index/NLCD_Land_Cover_Change_Index_L48_20190424.img", sep = "")
-#import tiff as raster file using raster package:
-habrast <- raster::raster( habpath )
-#quick check by plotting with base
-plot( habrast )
-habrast
+# start by setting pathway
+sagepath <- paste( datadir, "Habitat/Sage_2007_2018/", sep = "" )
+# extract file names
+sagefiles <- dir( sagepath, pattern = "rec_v1.img", full.names = TRUE  )
+sagefiles
+#get names only
+sagenames <- dir( sagepath, pattern = "rec_v1.img", full.names = FALSE  )
+sagenames
 
+#import annual grasses layer:
+# start by setting pathway
+grasspath <- paste( datadir, "Habitat/Grass_2007_2018/", sep = "" )
+# extract file names
+grassfiles <- dir( grasspath, pattern = "rec_v1.img", full.names = TRUE  )
+grassfiles
+#get names only
+grassnames <- dir( grasspath, pattern = "rec_v1.img", full.names = FALSE  )
+grassnames
+########## end of data load ################################
+#######################################################################
 #### Simulating occupancy data #################
 # Our study species is the Piute ground squirrel, Spermophilus    # 
-# mollis. Ground squirrels are widely distributed in sagebrush-steepe #
+# mollis. Ground squirrels are widely distributed in sagebrush steppe #
 # habitats of the Great Basin and Columbia Plateau. #
 # Their abundance is influenced by drought, low temperatures when #
 # they emerge from hibernation in Feb and high temperatures in April-May #
@@ -88,7 +98,12 @@ habrast
 # to be closed) and how many primary seasons (1 or more)?         #
 # Let's start defining these:
 # Number of years we will run the study (primary seasons):
-T <- 10
+# study will run from 2007 to 2018. Define year range:
+yrrange <- 2007:2018
+# create column names for each year
+yrnames <- paste( "yr", yrrange, sep = "")
+#number of primary seasons:
+T <- length( yrrange )
 # Number of repeat surveys each season:
 J <- 3
 #Note that at least 3 surveys are recommended when detection is >0.5
@@ -167,18 +182,103 @@ markdf <- st_sf( m.sites = m.sites, geometry = st_sfc( sitesIm ) )
 head( countdf ); head( markdf )
 
 #########get climate data ####
+#view raw data:
+head( climraw )
+str( climraw )
+# We use lubridate first to get date in the correct format
+climraw$prettydate <- lubridate::as_date( climraw$DATE )
+# Then to extract year
+climraw$year <- lubridate::year( climraw$prettydate )
+# Extract month:
+climraw$month <- lubridate::month( climraw$prettydate, label = TRUE, abbr = TRUE )
+#view
+head( climraw )
+# now we summarize the data we need. Note this is assumed to be the same #
+# among sites:
+climdf <- climraw %>%
+  #group by month
+  group_by( year, month ) %>%
+  # summarise minimum and maximum temperature:
+  summarise( minT = min( TMIN, na.rm = TRUE ),
+             maxT = max( TMAX, na.rm = TRUE ) )
+#view
+tail( climdf )
+#select only the months we are interested in
+# note we specify the base package here because the raster package #
+# also has a subset function:
+climdf <- base::subset( climdf, month %in% c("Feb", "Apr", "May" ) )
+# now convert to long format
+climdf.long <- climdf %>% gather( "minT", "maxT", key = predictor, value = value )
+tail( climdf.long )
+#calculate max temperature over Apr-May for each year:
+climdf <- climdf.long %>% group_by( year ) %>% 
+  subset( month != "Feb" & predictor == 'maxT' ) %>%
+  summarise( AprMay.maxT = max( value ) )
+#view 
+head( climdf )
+#select min temperature for Feb
+minT <- climdf.long %>% group_by( year ) %>% 
+  subset( month == "Feb" & predictor == 'minT' ) %>%
+  summarise( Feb.minT = value )
+#view
+head( minT )
+#join with other predictor
+climdf <- left_join( climdf, minT, by = "year" )
+#view 
+head( climdf )
+#plot 
+ggplot( climdf ) + theme_bw( base_size = 15 ) +
+#  geom_histogram( aes(Feb.minT ) )
+  geom_histogram( aes(AprMay.maxT ) )
+#### end clim data manipulation ####
+
+########### get habitat data #########
+# extract sagebrush and annual grasses 
+#start by creating dataframe to store sagebrush values
+sagedf <- occdf %>% st_drop_geometry() %>%
+        dplyr::select( o.sites, counted, marked  )
+#add site id
+sagedf[ , yrnames] <- NA
+#view
+head( sagedf )
+sagenames
+# Create a function to extract proportion of habitat from raster files that #
+# are combined into a stack across years:
+hab_extract <- function( df, files, site.locs, buf ){
+  #required inputs:
+  # df is dataframe where we will populate habitat values
+  # files are the file names of the rasters for the habitat type for each year
+  # site.locs are the site locations as SpatialPoints
+  # buf is the buffer radius in meters over which we extract habitat
+  
+  #import raster files
+  temp.rast <- lapply( files, raster ) #lapply( files, raster )
+  #turn into stack
+  temp.stack <- stack( temp.rast )
+  # #convert site locations to spatial points:
+  # convert site location coords to match habitat raster
+  locs <- spTransform( site.locs, proj4string( temp.stack ) )
+  #extract nlcd landcover for cell associated with each site, each year
+  cover <- raster::extract( temp.stack, locs, buffer = buf )
+  
+  #get mean proportion of landcover for each site (each list), for all years (columns)
+  for( i in 1:dim(locs@coords)[1] ){ #loop over each site
+  df[i,yrnames] <- apply( cover[[i]], MARGIN = 2, mean ) 
+  }
+  # Delete any intermediate files created by raster.
+  raster::removeTmpFiles()
+  
+  # output dataframe:
+  return( df )
+}
+#convert site location to spatial points
+site.locs <- as_Spatial( sitesIo ) #as_Spatial( site.locs )
+# populate  sagebrush dataframe
+sagedf <- hab_extract( df = sagedf, files = sagefiles, 
+                       site.locs = site.locs, buf = 200 )
 
 
-# populate sagebrush
-occdf <- occdf %>%
-      mutate( sagebrush = runif( n = Io, min = 0, max = 50 ),
-              cheatgrass = runif( n = Io, min = 0, max = 50 ), 
-              nativegrass = runif( n = Io, min = 0, max = (sagebrush - cheatgrass )),
-              other = 1 - (sagebrush + cheatgrass + nativegrass ) )
-
-
-
-
+#### end of habitat prep ###########
 
 #############end of section creating data #########################
 ################## Save your data and workspace ###################
