@@ -35,17 +35,21 @@ install.packages( "tidyverse" ) #actually a collection of packages
 # including dplyr, lubridate, tidyr, ggplot2 and more.
 
 #install.packages( "unmarked" )
-install.packages( "sf" )
-install.packages( "rgdal")
-install.packages( "raster" )
-
+install.packages( "sf" ) #easy spatial dataframes
+install.packages( "rgdal") #import spatial data
+install.packages( "raster" ) #import, extract, manipulate rasters
+install.packages( "rasterVis" ) # plotting rasters
+install.packages( "RColorBrewer" ) #plotting colors
 # load packages:
 library( tidyverse ) 
 #library( unmarked )
 library( sf )
-library( sp )
+library( sp ) #commonly used spatial functions
 library( rgdal )
 library( raster )
+library( rasterVis )
+library( RColorBrewer )
+
 ## end of package load ###############
 ###################################################################
 #### Load or create data -----------------------------------------
@@ -68,20 +72,20 @@ head( climraw )
 # start by setting pathway
 sagepath <- paste( datadir, "Habitat/Sage_2007_2018/", sep = "" )
 # extract file names
-sagefiles <- dir( sagepath, pattern = "rec_v1.img", full.names = TRUE  )
+sagefiles <- dir( sagepath, pattern = "_v1.img", full.names = TRUE  )
 sagefiles
 #get names only
-sagenames <- dir( sagepath, pattern = "rec_v1.img", full.names = FALSE  )
+sagenames <- dir( sagepath, pattern = "_v1.img", full.names = FALSE  )
 sagenames
 
 #import annual grasses layer:
 # start by setting pathway
-grasspath <- paste( datadir, "Habitat/Grass_2007_2018/", sep = "" )
+grasspath <- paste( datadir, "Habitat/AnnualHerb_2007_2018/", sep = "" )
 # extract file names
-grassfiles <- dir( grasspath, pattern = "rec_v1.img", full.names = TRUE  )
+grassfiles <- dir( grasspath, pattern = "_v1.img", full.names = TRUE  )
 grassfiles
 #get names only
-grassnames <- dir( grasspath, pattern = "rec_v1.img", full.names = FALSE  )
+grassnames <- dir( grasspath, pattern = "_v1.img", full.names = FALSE  )
 grassnames
 ########## end of data load ################################
 #######################################################################
@@ -115,6 +119,8 @@ Io <- 100
 Ic <- 50
 # Number of sites we visit to trap and mark individuals:
 Im <- 20
+# define the radius (in m) of our effective sampling area
+buf <- 200
 
 # Start by randomly selecting sites to sample:
 # choose sites inside NCA, note some may be too close to be independent so #
@@ -125,9 +131,29 @@ site.dist <- st_distance( sites )
 # replace 0 with NA to calculate if any are closer than 500m
 diag( site.dist) <- NA
 # remove those that are closer than 500 m:
-keep <- which( apply( X = site.dist, MARGIN = 1, FUN = min, na.rm = TRUE ) > 500 )
+keep.org <- which( apply( X = site.dist, MARGIN = 1, 
+                FUN = min, na.rm = TRUE ) > 500 )
+#now need to check that these locations are not missing habitat data:
+#bring in a sample raster assuming equal coverage across all
+samp.rast <- raster::raster( sagefiles[1] )
+# convert site location to spatial object
+sites.locs <- as_Spatial( sites[ keep.org ] )
+# transform coords system to match habitat raster
+keep.locs <- spTransform( sites.locs, proj4string( samp.rast ) )
+# why not the other way around?
+
+#extract annual % landcover for cells within buffer surrounding each site #
+# center point 
+landcover <- raster::extract( samp.rast, keep.locs, buffer = buf )
+#only keep sites without missing habitat data. Missing values are marked as 
+# 101 or 102:
+#create logical vector to subset original site list
+keep.red <- keep.org == keep.org
+for( l in 1:length(landcover) ){
+  keep.red[l] <- ifelse( sum(landcover[[l]] >100) > 0, FALSE, TRUE )
+}
 #from this reduced sample then randomly select those for occupancy sampling 
-keep <- sample( keep, size = Io )
+keep <- sample( keep.org[ keep.red ], size = Io )
 #create a spatial point object so that we can plot them:
 sitesIo <- sites[ keep, ]
 #now subsample sites for counts
@@ -142,12 +168,16 @@ diag(check) <- NA
 apply( X = check, MARGIN = 1, FUN = min, na.rm = TRUE )
 
 #plot site locations:
+cols.sol = c("Sign" = "blue", "Count" = "green", "Trap" = "orange")
 ggplot( NCA, aes( geometry = geometry ) ) + 
   theme_bw( base_size = 15 ) +
-  geom_sf( size = 1.5) +  geom_sf( data = sites, size = 1 ) +
-  geom_sf( data = sitesIo, size = 1.5, color = "blue" ) +
-  geom_sf( data = sitesIc, size = 2, color = "green" ) +
-  geom_sf( data = sitesIm, size = 3, color = "orange" )
+  geom_sf( size = 1.5) + # geom_sf( data = sites, size = 1 ) +
+  geom_sf( data = sitesIo, size = 1.5, aes(color = "Sign")) + #color = "blue" ) +
+  geom_sf( data = sitesIc, size = 2, aes(color = "Count")) + #color = "green" ) +
+  geom_sf( data = sitesIm, size = 3, aes(color = "Trap")) + #color = "orange" ) +
+  scale_color_manual(name = "Method", values = cols.sol ) +
+  theme( legend.position = "top" )
+
 
 # Create an sf dataframe that will store our occupancy data by combining #
 #our simple features (spatial points) with original site IDs:
@@ -234,19 +264,24 @@ ggplot( climdf ) + theme_bw( base_size = 15 ) +
 
 ########### get habitat data #########
 # extract sagebrush and annual grasses 
-#start by creating dataframe to store sagebrush values
-sagedf <- occdf %>% st_drop_geometry() %>%
+#start by creating dataframe to store sagebrush and annual herbaceous values
+sagedf <- grassdf <- occdf %>% st_drop_geometry() %>%
         dplyr::select( o.sites, counted, marked  )
-#add site id
+#add columns for annual habitat data
 sagedf[ , yrnames] <- NA
 #view
 head( sagedf )
-sagenames
+#add  columns for annual habitat data
+grassdf[ , yrnames] <- NA
+#view
+head( grassdf )
+
 # Create a function to extract proportion of habitat from raster files that #
 # are combined into a stack across years:
-hab_extract <- function( df, files, site.locs, buf ){
+hab_extract <- function( df, yrnames, files, site.locs, buf ){
   #required inputs:
   # df is dataframe where we will populate habitat values
+  # yrnames are column names in df where habitat values will go
   # files are the file names of the rasters for the habitat type for each year
   # site.locs are the site locations as SpatialPoints
   # buf is the buffer radius in meters over which we extract habitat
@@ -255,15 +290,24 @@ hab_extract <- function( df, files, site.locs, buf ){
   temp.rast <- lapply( files, raster ) #lapply( files, raster )
   #turn into stack
   temp.stack <- stack( temp.rast )
-  # #convert site locations to spatial points:
-  # convert site location coords to match habitat raster
+
+   # convert site location coords to match habitat raster
   locs <- spTransform( site.locs, proj4string( temp.stack ) )
   #extract nlcd landcover for cell associated with each site, each year
   cover <- raster::extract( temp.stack, locs, buffer = buf )
-  
   #get mean proportion of landcover for each site (each list), for all years (columns)
   for( i in 1:dim(locs@coords)[1] ){ #loop over each site
-  df[i,yrnames] <- apply( cover[[i]], MARGIN = 2, mean ) 
+    #masked areas have values of 101 and outside mapping areas have values of 102
+    # need to replace those with NA before calculating means
+    cover[[i]][ cover[[i]] %in% c(101,102) ] <- NA
+    #print max value
+    print( max( cover[[i]], na.rm = TRUE ))
+    # calculate mean proportion for each primary season
+    a <- apply( cover[[i]], MARGIN = 2, mean, na.rm = TRUE ) 
+    # remove names and round values to 1 decimal 
+    a <- round( as.numeric( a ), 1 )
+    #print( a )
+    df[ i, yrnames ] <- a
   }
   # Delete any intermediate files created by raster.
   raster::removeTmpFiles()
@@ -272,15 +316,124 @@ hab_extract <- function( df, files, site.locs, buf ){
   return( df )
 }
 #convert site location to spatial points
-site.locs <- as_Spatial( sitesIo ) #as_Spatial( site.locs )
-# populate  sagebrush dataframe
-sagedf <- hab_extract( df = sagedf, files = sagefiles, 
-                       site.locs = site.locs, buf = 200 )
+site.locs <- as_Spatial( sitesIo ) 
 
+# populate  sagebrush dataframe. Notice that there is no NLCD data for 2012
+# so we leave it empty for now and populate it later
+sagedf <- hab_extract( df = sagedf, yrnames = yrnames[yrnames != "yr2012"], 
+                       files = sagefiles, site.locs = site.locs, buf = buf )
+#view 
+head( sagedf )
+max( sagedf[ ,yrnames ], na.rm = TRUE )
+
+# populate  annual herbaceous (i.e., mainly cheatgrass) dataframe. 
+# Notice that there is no NLCD data for 2012 so we leave it empty for now
+grassdf <- hab_extract( df = grassdf, yrnames = yrnames[yrnames != "yr2012"], 
+                       files = grassfiles, site.locs = site.locs, buf = buf )
+#view
+head( grassdf )
+max( grassdf[ ,yrnames ], na.rm = TRUE )
+
+# for now we assume 2012 is the mean between 2011 and 2013:
+sagedf <- sagedf %>% 
+          mutate( yr2012 = rowMeans( select(., yr2011, yr2013 ) ) )
+
+grassdf <- grassdf %>% 
+  mutate( yr2012 = rowMeans( select(., yr2011, yr2013 ) ) )
 
 #### end of habitat prep ###########
+#### simulating demographic parameters
+head( occdf )
+#create a dataframe to store true abundance values:
+Ndf <- matrix( data = 0, nrow = Io, ncol = T )
+# let's randomly draw abundances for the 1st year
+set.seed( 2020 )
+Ndf[,1] <- runif( n = Io,  )
 
+round( runif( n = 10, 0, 500 ))
 #############end of section creating data #########################
+###################################################################
+###### plotting #################################
+### plot rasters #########
+#plot sagebrush rasters 
+#import raster files
+temp.rast <- lapply( sagefiles, raster ) 
+#turn into raster stack
+temp.stack <- stack( temp.rast )
+#transform locations to same coordinate sistem
+locs <- spTransform( site.locs, proj4string( temp.stack ) )
+#transform NCA polygon
+nca <- spTransform( as_Spatial( NCA), proj4string( temp.stack ) )
+#crop raster stack
+ex <- extent( nca )
+#crop raster stack to extent of NCA
+plot.stack <- raster::crop( temp.stack, ex )
+#mask raster stack
+plot.stack <- raster::mask( plot.stack, nca )
+# define a color ramp of yellow to green with 3 different levels
+cols <- colorRampPalette( brewer.pal(3,"YlGn") )
+#plot annual habitat rasters for sagebrush within the range of values observed
+# in the NCA, which were < 30%
+levelplot( plot.stack, at = seq(0,30,10), col.regions=cols, 
+           names.attr = yrnames[yrnames != "yr2012"] ) +
+  layer(  sp.points(locs,  col = "blue" ) ) +
+  layer( sp.polygons( nca, col = "black" ) )
+
+#plot cheatgrass rasters 
+#import raster files
+temp.rast <- lapply( grassfiles, raster ) 
+#turn into a raster stack
+temp.stack <- stack( temp.rast )
+#crop raster stack to extent of NCA that we define above:
+plot.stack <- raster::crop( temp.stack, ex )
+#mask raster to only include the NCA
+plot.stack <- raster::mask( plot.stack, nca )
+# define color ramp to use in the plot
+cols <- colorRampPalette( brewer.pal( 5,"YlOrRd") )
+#plot annual habitat rasters for cheatgrass in the range of values observed
+# in the NCA, which were < 50%
+levelplot( plot.stack, 
+           #set min and max proportion of habitat to be displayed
+           at = seq(0,50,10), col.regions=cols,  
+           #label panels excluding the missing data of 2012
+          names.attr = yrnames[yrnames != "yr2012"] ) +
+  #add site locations for occupancy study:
+  layer(  sp.points(locs,  col = "blue" ) ) +
+  #add NCA polygon 
+  layer( sp.polygons( nca, col = "black" ) )
+
+#####
+#### plot predictors ####
+yrdf <- data.frame( year = yrrange, yearname = yrnames )
+head( sagedf )
+
+#annual changes in habitat cover:
+#sagedf %>% 
+grassdf %>%  
+  #subset( counted == 'yes' ) %>%
+  #subset( marked == 'yes' ) %>%
+  gather( key = yearname, cover, yrnames ) %>%
+left_join( yrdf, by = "yearname" ) %>%
+ggplot(., aes( x = as.numeric(year), y = cover, 
+               color = as.factor(o.sites) )) + 
+  #labs( x = "Year", y = "Sagebrush (%)" ) +
+  labs( x = "Year", y = "Cheatgrass (%)" ) +
+  theme_bw( base_size = 15 ) +
+  geom_line( size = 1.3 ) +
+  theme( legend.position = "none" )
+
+#annual climate
+head( climdf )
+ggplot( climdf, aes( x = year, 
+                     #y = Feb.minT ) ) +
+                     y = AprMay.maxT ) ) +
+  theme_bw( base_size = 15 ) +
+  #labs( x = "Year", y = "Feb Minimum Temperature (C)" ) +
+  labs( x = "Year", y = "Apr-May Maximum Temperature (C)" ) +
+  geom_line( size = 1.3 )
+  
+###### end of plots #############
+
 ################## Save your data and workspace ###################
 
 ########## End of saving section ##################################
