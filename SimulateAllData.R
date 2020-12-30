@@ -204,18 +204,6 @@ occdf[ occdf$orgID %in% keepm,'marked' ] <- 'yes'
 #check
 head( occdf )
 
-#work out new site ID for count sites:
-c.sites <- occdf$o.sites[ occdf$orgID %in% keepc ]
-#work out new site ID for mark sites:
-m.sites <- occdf$o.sites[ occdf$orgID %in% keepm ]
-
-#create sf dataframe to store our point count data:
-countdf <- st_sf( c.sites = c.sites, geometry = st_sfc( sitesIc ) )
-#create sf dataframe to store our trapping data:
-markdf <- st_sf( m.sites = m.sites, geometry = st_sfc( sitesIm ) )
-#check
-head( countdf ); head( markdf )
-
 #########get climate data ####
 #view raw data:
 head( climraw )
@@ -412,7 +400,7 @@ head( pred.std)
 
 #### end combine #####
 ######################################################################
-#### simulating demographic parameters
+#### simulating demographic parameters #######
 head( occdf )
 #create dataframes to store true occupancy and abundance values:
 Odf <- Ndf <- matrix( data = 0, nrow = Io, ncol = T )
@@ -454,7 +442,7 @@ ggplot( phidf, aes( x = x, y = y ) ) +
   theme_bw(base_size = 15) + geom_point( size = 2 )
 # Let's assume the probability of the plague coming through is constant through #
 # time and small:
-plague <- 0.05
+plague <- 0.02
 
 # If a site is unoccupied (1-O), its probability of becoming recolonized, gamma,
 #is related to an increase in sagebrush #
@@ -473,8 +461,10 @@ ggplot( gammadf, aes( x = x, y = y) ) +
   labs( x = "Sagebrush cover (%)", y = "Probability of colonization") +
   theme_bw(base_size = 15) + geom_point( size = 2 )
 
-# Now let's derive factors affecting population growth for the following #
-# seasons for sites that are occupied. # 
+# Now let's simulate population growth for the following years using a #
+# Gompertz model adapted to discrete time steps. #
+# See: Cruz et al. 2013 PLOS ONE 8(9):e73544 for example.
+
 # Female Piute ground squirrels give birth to an average of 5-10 young #
 # Reproduction is affected by food availability early in the #
 # season when they come out of hibernation, with colder Feb temperatures #
@@ -485,12 +475,13 @@ ggplot( gammadf, aes( x = x, y = y) ) +
 # negative relationship between survival and max T in Apr-May #
 #let's define these relationships
 # Lastly, survival is expected to be higher in sites with more sagebrush #
-int.psi <- -0.2
-beta.psi <- c( 0.4, 1, -0.8 )  
+int.psi <- log(1.1) #this intercept is the log( mean growth rate )
+#coefficients for sagebrush, feb.minT, aprmay.maxT:
+beta.psi <- c(  0.1, 0.4, -0.3 )  
 #create coefficient vector
 coefs.psi <-  as.vector( c( int.psi, beta.psi ) )
 #define predictor matrix
-psi.preds <- as.matrix( cbind( rep(1, dim(pred.std)[1] ), 
+psi.preds <- as.matrix( cbind( rep(1, dim(pred.std)[1] ),
           pred.std[ ,c("sagebrush", "Feb.minT", "AprMay.maxT") ] ) )
 # matrix multiply coefficients by predictors to estimate logit.psi:
 log.psi <- psi.preds %*% coefs.psi
@@ -508,40 +499,79 @@ a <- ggplot( psidf, aes( x = x, y = y ) ) +
 print(a )
 }
 
-# spread survival probability to a site X year matrix:
+# Turn growth rate into a siteXyear matrix:
 log.psi.df <- cbind( preddf[ ,c("o.sites", "yearname") ], log.psi )
 log.psi.df <- spread( data = log.psi.df, key = yearname, value = log.psi )
 head( log.psi.df )  
+#view historgram of growth rates:
 hist(exp(log.psi))
-# Now we can derive occupancy as the product of the colonization and extinction #
-# processes derived above:
-#We calculate probability of remaining occupied, phi, by subtracting the 
-# plague probability:
-Phi <- plogis( logit.phi[,t] ) - plague
-# We estimate colonization probability gamma:
-Gamma <- plogis( logit.gamma[,t] )
-# we derive occupancy 
-Odf[ ,t+1] <- rbinom( Io, 1, (Odf[,t] * Phi ) + 
-                ( (1 - Odf[,t]) * Gamma ) )
 
-# The number of individuals arriving is a random draw from a few dispersers #
-# multiplied by the probability that the site is colonized.
-M <- round( runif( Io, min = 0, max = 6 ) * Gamma )
+# Estimate occupancy and abundance for the following time periods in a loop:
+for( t in 1:(T-1) ){
+  # Now we can derive occupancy as the product of the colonization and extinction #
+  # processes derived above:
+  #We calculate probability of remaining occupied, phi, by subtracting the 
+  # plague probability:
+  Phi <- plogis( logit.phi[,t] ) - plague
+  Phi <- ifelse( Phi < 0, 0, Phi )
+  # We estimate colonization probability gamma:
+  Gamma <- plogis( logit.gamma[,t] )
+  # we derive occupancy 
+  Odf[ ,t+1] <- rbinom( n = Io, size = 1, prob = ( ( Odf[,t] * Phi ) + 
+                ( (1 - Odf[,t]) * Gamma ) ) )
 
-#Abundance is the product of whether the site is occupied, O[t+1] and a #
-# Poisson process with mean rate, lambda, driven by abundance in the previous # 
-# season, N[t], survival probability and individuals that migrated into the site, M #
+  # Abundance, N[t+1] is determined by a Gompertz process driven by site #
+  # occupancy, O[t+1], abundance in the previous season, N[t], population #
+  # growth rate, Psi[t] and density-dependence, with Poisson error. #
+  # In addition, potential migrants may be added to a site depending on 
+  # a binomial process driven by a random draw of dispersers and the probability #
+  # that the site was colonized that year, Gamma[t]. 
 
-# We start by estimating the survival probability for that site, that year:
-Psi <- exp( log.psi.df[ ,yrnames[t]] )
-# We then work out which 
-S <- rbinom( Io, size = Ndf[,t-1], prob = Psi )
-M <- rpois( Io, lambda = Odf[ ,t+1] * 7 )
-# the we calculate abundance:
-Ndf[ ,t+1 ] <- rpois( n = Io, lambda = ( Ndf[,t] * Psi ) ) + ( M * Odf[ ,t+1] )
+  #Estimate the population growth rate for that site, that year, Psi, by adding
+  # a density-dependent term when the site was occupied in the previous season:
+  Psi <- exp( log.psi.df[ ,yrnames[t]] + ( -0.05 * log( Ndf[,t] + 1 ) ) )
 
+  # Determine the number of survivors, based on current site occupancy, Odf[t+1], #
+  # previous abundance, N[t], and population growth rate, Psi[t]. The later takes #
+  # into account covariates and reflects births and deaths in the population:
+  S <- rpois( n = Io, lambda = Ndf[,t] * Psi * Odf[,t+1] )
 
+  # Define potential migrants, M, as the product of a binomial process drawing #
+  # from a random draw of potential dispersers ranging from 1 to 20, and #
+  # the probability of colonization for that year for each site: #
+  M <- rbinom( Io, size = round(runif( Io, min = 1, max = 20 )), prob = Gamma )
 
+  # Calculate abundance as the sum of survivors, S, and migrants, M:
+  Ndf[ ,t+1 ] <- S + M 
+
+} #end of loop
+
+#check output
+Ndf
+head( Odf )
+rowSums( Odf )
+#######
+##### add imperfect detection to our sampling ######
+# for our occupancy searches w
+
+#### turn matrices to sf dataframes to save them: ######
+# True occupancy dataframe
+Odf.save <- as.data.frame( Odf )
+#add column names
+colnames( Odf.save ) <- yrnames
+#view
+head( Odf.save )
+#add site attributes
+Odf.save <- cbind( occdf, Odf.save )
+
+# True abundance dataframe:
+Ndf.save <- as.data.frame( Ndf )
+#add column names
+colnames( Ndf.save ) <- yrnames
+#view
+head( Ndf.save )
+#add site attributes
+Ndf.save <- cbind( occdf, Ndf.save )
 
 
 #############end of section creating data #########################
@@ -627,13 +657,26 @@ ggplot( climdf, aes( x = year,
 ###### end of plots #############
 
 ################## Save your data and workspace ###################
+#save shapefile of site locations
+sf::st_write( occdf, paste( getwd(), "/Data/sites.shp",  sep = "" ),  
+              driver = "ESRI Shapefile" )
+
 #save predictor dataframe in longformat
 write.csv( preddf, paste( getwd(),"/Data/predictors.csv", sep = "" ),  
                           row.names = FALSE )
 
-#save shapefile of site locations
-sf::st_write( occdf, paste( getwd(), "/Data/sites.shp",  sep = "" ),  
-                            driver = "ESRI Shapefile" )
+#save standardized predictors
+write.csv( pred.std, paste( getwd(),"/Data/predictors_std.csv", sep = "" ),  
+           row.names = FALSE )
+
+#save true occupancy dataframe as shapefile so that we can keep spatial information:
+sf::st_write( Odf.save, paste( getwd(), "/Data/Odf.shp", sep = "" ),
+              driver = "ESRI Shapefile" )
+
+#save true abundance dataframe as shapefile so that we can keep spatial information:
+sf::st_write( Ndf.save, paste( getwd(), "/Data/Ndf.shp", sep = "" ),
+              driver = "ESRI Shapefile" )
+
 
 #save workspace 
 save.image( "SimDataWorkspace.RData" )
