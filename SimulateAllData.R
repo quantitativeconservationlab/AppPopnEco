@@ -340,6 +340,7 @@ grassdf <- grassdf %>%
   mutate( yr2012 = rowMeans( select(., yr2011, yr2013 ) ) )
 
 #### end of habitat prep ###########
+
 ### combine and standardize predictor data ####
 head( sagedf )
 #start with habitat: converting to long format:
@@ -360,11 +361,11 @@ head( climdf )
 preddf <- left_join( preddf, climdf, by = "year" ) 
 #check
 head( preddf ); dim( preddf )
-#define predictor columns
+#define predictor columns for demographic models:
 prednames <- c( "cheatgrass", "sagebrush", "Feb.minT","AprMay.maxT" )
 #reorder columns
-preddf <- preddf %>% dplyr::select( o.sites, counted, marked, yearname, year, cheatgrass, 
-                  sagebrush,  Feb.minT, AprMay.maxT )
+preddf <- preddf %>% dplyr::select( o.sites, counted, marked, yearname, year,
+                      cheatgrass, sagebrush,  Feb.minT, AprMay.maxT )
 
 #check correlation among predictors
 round( cor( preddf[ ,prednames ] ), 1)
@@ -388,7 +389,8 @@ sage.std[ ,yrnames] <- wiqid::standardize( as.matrix( sage.std[ ,yrnames] ) )
 head( sage.std )
 
 #all predictors 
-pred.std <- preddf[,1:7]
+pred.std <- preddf[,c( "o.sites", "counted", "marked", "yearname", 
+                      "cheatgrass", "sagebrush" ) ]
 #add standardized climate data
 head( pred.std )
 pred.std <- left_join( pred.std, clim.std, by = "year" ) 
@@ -396,7 +398,7 @@ pred.std <- left_join( pred.std, clim.std, by = "year" )
 pred.std[ ,"cheatgrass" ] <- scale(pred.std[ ,"cheatgrass" ] )
 pred.std[ ,"sagebrush" ] <- scale(pred.std[ ,"sagebrush" ] )
 #view
-head( pred.std)
+head( pred.std )
 
 #### end combine #####
 ######################################################################
@@ -551,10 +553,7 @@ Ndf
 head( Odf )
 rowSums( Odf )
 #######
-##### add imperfect detection to our sampling ######
-# for our occupancy searches w
-
-#### turn matrices to sf dataframes to save them: ######
+#### turn matrices to sf dataframes to save them and to long formats: ######
 # True occupancy dataframe
 Odf.save <- as.data.frame( Odf )
 #add column names
@@ -573,6 +572,242 @@ head( Ndf.save )
 #add site attributes
 Ndf.save <- cbind( occdf, Ndf.save )
 
+# reformat true occupancy and abundance dataframes to a long format:
+head( Odf.save )
+# extract columns from Odf and drop geometry:
+Odf.long <- st_drop_geometry( Odf.save[ ,c('o.sites',
+                                           'counted', 'marked', yrnames ) ] )
+#convert to long formats
+Odf.long <- Odf.long %>% 
+  gather( key = yearname, Occ, yrnames )
+#check that it worked
+#view
+head( Odf.long ); dim( Odf.long )
+
+# repeat process for true abundance dataframe
+Ndf.long <- st_drop_geometry( Ndf.save[ ,c('o.sites','counted', 'marked', yrnames ) ] )
+#convert to long formats
+Ndf.long <- Ndf.long %>% 
+  gather( key = yearname, N, yrnames )
+#check that it worked
+#view
+head( Ndf.long ); dim( Ndf.long )
+#### end matrix to df conversion ##########
+
+########################################################################
+##### add imperfect detection to our sampling ######
+# Create an observation dataframe to store results:
+#survey names
+jnames <- c( "j1", "j2", "j3" )
+# create column names where we will store observations
+onames <- c( paste( "pres", jnames, sep = "." ),
+             paste( "count", jnames, sep = "." ) )
+#create dataframe with columns that will contain observations for the three #
+# sampling methods
+obsdf <- data.frame( matrix( 0, nrow = dim(preddf)[1], ncol = length( onames ) ,
+                             dimnames = list(NULL, onames ) ) )
+# add ID information 
+obsdf <- cbind( preddf[ ,c('o.sites', 'counted', 'marked', 'yearname', 'year')],
+                obsdf )
+### simulate detection predictors at the survey, J, level or animal, A, level ####
+# observer effects:
+#let's create ID for 4 observers
+observers <- paste( "tech", 1:4, sep = "." )
+#create column ids for observer predictors
+obscols <- paste( 'observer', jnames, sep = "." )
+# create column id for time of day:
+timecols <- paste( "time", jnames, sep = "." )
+#create range of times in minutes ranging from 0 at 6am to 360 at noon:
+survtimes <- seq( 0, 360, 5 )
+
+#loop to create random choice of observer for each survey, site, season:
+for( j in 1:J ){
+obsdf[ ,obscols[j] ] <- sample( x = rep(observers, dim( obsdf)[1]) ,
+                               size = dim( obsdf)[1], replace = FALSE )
+}
+#loop over surveys to create random time that they were conducted:
+for( j in 1:J ){
+obsdf[ ,timecols[j] ] <- sample( x = survtimes, dim( obsdf)[1], replace = TRUE )
+}
+
+#check
+head( obsdf )
+
+### end detection predictors ######
+#### Detection for occupancy searches ######
+# detection for occupancy searches is related to % sagebrush, with  #
+# increasing sagebrush lowering visibility of ground squirrel sign #
+# and to observer effects with 4 observers randomly surveying sites #
+# on different days #
+
+# Let's define the relationship between sagebrush and detection:
+#intercept as the logit of mean detection:
+int.p.occ <- qlogis( 0.7 )
+#coefficient for sagebrush[i,t]
+beta.p.occ <- -0.3
+#combine
+logit.p <- int.p.occ + ( beta.p.occ * pred.std[, 'sagebrush'] ) 
+# let's plot the relationship to see what it looks like:
+#combine predictor dataframe (not standardized) with response:
+cbind( preddf, logit.p ) %>% 
+  #add y as expit(logit.p )
+  mutate( y = plogis( logit.p ) ) %>%
+  #plot result
+ggplot( ., aes( x = sagebrush, y = y) ) +
+  labs( x = "Sagebrush cover (%)", y = "Probability of detection") +
+  theme_bw(base_size = 15) + geom_point( size = 2 )
+
+hist( preddf$sagebrush)
+#now let's add the observer effect:
+obsefs <- data.frame( id = observers, effect = rnorm(n = 4, mean = 0, sd = 1 ) )
+#calculate the mean probability of detection for each observer
+plogis( int.p.occ + obsefs$effect )
+obsefs
+# we can now populate the observations:
+for( j in 1:J ){
+  for( i in 1:dim(obsdf)[1]){
+    # calculate detection for that survey by adding the respective observer effect #
+    # to the logit.p relationship with sagebrush
+    p.j[i] <- plogis( logit.p[i] + 
+        obsefs[ which( obsefs[,"id"] == obsdf[ i, obscols[j] ] ), "effect" ] )
+
+    # now populate observed presence as a Binomial process based on the #
+    # detection probability, p[i,t], and true occupancy, Occ[i,t] #
+    obsdf[ i,onames[j] ] <- rbinom( n = 1, size = 1, 
+                                 prob = p.j[i] * Odf.long[ i,"Occ" ] )
+  }
+  # print(p.j[1:100])
+  # ap <- hist( p.j )
+  # bp <- hist( p.j * Odf.long[,"Occ"] )
+  # cp <- table( obsdf[,onames[j]] )
+  # print(cp)
+}
+#view
+tail( obsdf,10 )
+colSums( obsdf[,onames[1:3]] )
+#### end detection for occupancy ####
+#### Detection for Point Counts ######
+# detection for point counts is related to time of day #
+#start by creating standardized matrix of our survey times:
+times.std <- wiqid::standardize( as.matrix( obsdf[ ,timecols] ) )
+#view
+head( times.std )
+#define our relationship with time of day as a quadratic:
+#intercept is logit of mean detection
+int.p.count <- qlogis( 0.7 )
+#coefficients for quadratric relationship with time of day
+beta.p.count <- c( -0.2, -0.4 )
+logit.p.count <- int.p.count + ( beta.p.count[1] * times.std[, timecols] ) +
+                 ( beta.p.count[2] * times.std[ ,timecols ]^2 )
+#view
+head(logit.p.count)
+#change colnames
+colnames( logit.p.count ) <- paste( "logit.p", jnames, sep = ".")
+# let's plot the relationship to see what it looks like:
+for( j in 1:J){
+  #combine predictor dataframe (not standardized) with response:
+jp <-  data.frame( x = obsdf[ ,timecols[j] ], 
+              y = plogis( logit.p.count[,j] ) ) %>% 
+  #plot result
+  ggplot( ., aes( x = x, y = y) ) +
+  labs( x = "Survey time", y = "Probability of detection", main = jnames[j]) +
+  theme_bw(base_size = 15) + geom_point( size = 2 )
+print( jp )
+}
+
+dim(obsdf );dim(Ndf.long); dim( logit.p.count)
+# we can now populate count observations:
+for( j in 1:J ){
+  for( i in 1:dim(obsdf)[1]){
+    # observed counts are a Poisson process dependent on detection probability #
+    # and true abundance:
+    obsdf[ i,onames[3+j] ] <- rpois( n = 1, lambda = plogis( logit.p.count[i,j] ) * 
+                                  Ndf.long[ i,"N" ] )
+  }}
+head( obsdf,30 )
+######
+#### Detection for Trapping ######
+# detection for trapping is related to trap happiness and sex #
+# let's assume and even sex ratio and randomly assign individuals as male #
+# or female
+#define mean probability of 1st capture for female:
+int.p.mark <- qlogis( 0.6 )
+#define probability of recapture and of capture if male:
+beta.p.mark <- c( 1, 0.5 )
+p.mark <- data.frame( sex = rep( c( "female", "male"),2 ), trap.resp = c("no", "no","yes","yes") )
+#populate with detection:
+#detection for 1st capture, female
+p.mark[1,"p"] <- plogis( int.p.mark )
+#relationship for 1st capture male
+p.mark[2,"p"] <- plogis( int.p.mark + beta.p.mark[2] )
+#relationship for recapture female
+p.mark[3,"p"] <- plogis( int.p.mark + beta.p.mark[1] )
+#detection for recapture, male
+p.mark[4,"p"] <- plogis( int.p.mark + sum(beta.p.mark ) )
+p.mark
+
+#let's create a dataframe of true abundance by selecting sites that were trapped:
+Ndf.mark <- dplyr::filter( Ndf.long, marked == "yes" ) %>%
+        dplyr::select( -counted )
+head( Ndf.mark )
+
+#create dataframe to store data for individuals available for capture
+Indf <- data.frame( o.sites = rep(Ndf.mark[1,'o.sites'] , Ndf.mark$N[1] ), 
+          year = rep( yrdf$year[ which( yrdf[ ,'yearname'] == Ndf.mark[1,'yearname'] ) ], 
+                                Ndf.mark$N[1] ) )
+#assign gender
+Indf[ ,"sex"] <- sample( c("female", "male"), size = Ndf.mark[ 1,"N" ], 
+                                        replace = TRUE, prob = c(0.5, 0.5 ) )
+#view
+head( Indf );dim(Indf)
+
+#create a row for every individual available for capture:
+for( i in 2:dim(Ndf.mark)[1] ){
+  if( Ndf.mark$N[i] > 0 ){
+    #assign gender
+    sex <- sample( c("female", "male"), size = Ndf.mark$N[i], 
+                           replace = TRUE, prob = c(0.5, 0.5 ) )
+    #extract site id:
+    o.sites <- Ndf.mark$o.sites[i] 
+    #extract year id
+    year <- yrdf$year[ which( yrdf$yearname == Ndf.mark$yearname[i] )]
+    #create temp dataframe
+    df <- data.frame( o.sites, year, sex )
+    #add rows to Individual data frame:
+    Indf <<- rbind( Indf, df )
+  } #close if function
+  }# close for loop
+#view
+head( Indf ); dim( Indf )
+
+#now iterate through individuals to create their capture history
+trapnames <- paste( "trap", jnames, sep = "." )
+for( j in 1:3 ){
+  Indf[ ,trapnames[j] ] <- 0
+}
+head( Indf )
+#populate trap history for all individuals that were available for capture:
+for( i in 1:dim(Indf)[1]){
+  for( j in 1:J ){
+    #select trap response based on whether individuals was previously captured that 
+    #season. Note that they are all new captures to the season  on the 1st survey#
+    # so there is no behavioral response for j1:
+    resp <- ifelse( sum( Indf[ i,trapnames ] ) > 0, "yes", "no" )
+    #choose detection probability based on sex and previous capture of individual
+    p.i <- p.mark$p[ which( (p.mark$sex == Indf$sex[i]) & (p.mark$trap.resp == resp) ) ]
+    #use binomial draw to work out if it was trapped
+    Indf[i, trapnames[j]] <- rbinom(n = 1, size = 1, prob = p.i   )
+}}
+#now add capture history:
+Indf$ch <- apply( Indf[,trapnames ], 1, paste, collapse="" )
+#check
+head( Indf ); dim( Indf )
+#remove those individuals that were never captured:
+Indf <- filter( Indf, ch != "000" )
+#add individual ids:
+Indf$indid <- 1:dim(Indf)[1]
+#check
+head( Indf ); dim( Indf )
 
 #############end of section creating data #########################
 ###################################################################
@@ -677,6 +912,13 @@ sf::st_write( Odf.save, paste( getwd(), "/Data/Odf.shp", sep = "" ),
 sf::st_write( Ndf.save, paste( getwd(), "/Data/Ndf.shp", sep = "" ),
               driver = "ESRI Shapefile" )
 
+#save presence and count observations:
+write.csv( obsdf, paste( getwd(),"/Data/obsdf.csv", sep = "" ),  
+           row.names = FALSE )
+
+#save individual captures
+write.csv( Indf, paste( getwd(),"/Data/Indf.csv", sep = "" ),  
+           row.names = FALSE )
 
 #save workspace 
 save.image( "SimDataWorkspace.RData" )
