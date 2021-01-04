@@ -33,8 +33,6 @@ getwd()
 # install packages 
 install.packages( "tidyverse" ) #actually a collection of packages 
 # including dplyr, lubridate, tidyr, ggplot2 and more.
-
-#install.packages( "unmarked" ) #occupancy and abundance estimates
 install.packages( "sf" ) #easy spatial dataframes
 install.packages( "rgdal") #import spatial data
 install.packages( "raster" ) #import, extract, manipulate rasters
@@ -43,7 +41,6 @@ install.packages( "RColorBrewer" ) #plotting colors
 install.packages( "wiqid" ) #quick estimates for wildlife populations 
 # load packages:
 library( tidyverse ) 
-#library( unmarked )
 library( sf )
 library( sp ) #commonly used spatial functions
 library( rgdal )
@@ -596,6 +593,7 @@ head( Ndf.long ); dim( Ndf.long )
 
 ########################################################################
 ##### add imperfect detection to our sampling ######
+#### start by creating df and simulating detection predictors ######
 # Create an observation dataframe to store results:
 #survey names
 jnames <- c( "j1", "j2", "j3" )
@@ -609,7 +607,7 @@ obsdf <- data.frame( matrix( 0, nrow = dim(preddf)[1], ncol = length( onames ) ,
 # add ID information 
 obsdf <- cbind( preddf[ ,c('o.sites', 'counted', 'marked', 'yearname', 'year')],
                 obsdf )
-### simulate detection predictors at the survey, J, level or animal, A, level ####
+# simulate detection predictors at the survey, J, level or animal, A, level #
 # observer effects:
 #let's create ID for 4 observers
 observers <- paste( "tech", 1:4, sep = "." )
@@ -725,9 +723,19 @@ for( j in 1:J ){
                                   Ndf.long[ i,"N" ] )
   }}
 head( obsdf,30 )
+
+#create dataframe with missing values for those sites that were not 
+# meant to be counted
+obs_df <- obsdf
+head( obs_df );dim(obs_df )
+obs_df[ which(obs_df$counted == "no" ), c(onames[4:6],timecols)] <- NA
+
 ######
 #### Detection for Trapping ######
-# detection for trapping is related to trap happiness and sex #
+# Individuals are only marked with semipermanent tags so that #
+# we don't have information of which are recaptured in other seasons #
+# only within season# 
+# Detection for trapping is related to trap happiness and sex #
 # let's assume and even sex ratio and randomly assign individuals as male #
 # or female
 #define mean probability of 1st capture for female:
@@ -912,8 +920,14 @@ sf::st_write( Odf.save, paste( getwd(), "/Data/Odf.shp", sep = "" ),
 sf::st_write( Ndf.save, paste( getwd(), "/Data/Ndf.shp", sep = "" ),
               driver = "ESRI Shapefile" )
 
-#save presence and count observations:
+#save presence and count observations including counts for sites that were
+#technically not counted:
 write.csv( obsdf, paste( getwd(),"/Data/obsdf.csv", sep = "" ),  
+           row.names = FALSE )
+
+
+#modify to only include data for counted sites
+write.csv( obs_df, paste( getwd(),"/Data/obs_df.csv", sep = "" ),  
            row.names = FALSE )
 
 #save individual captures
