@@ -111,7 +111,6 @@ colSums( closeddf[, c("pres.j1", "pres.j2","pres.j3")])
 #about half the sites each time
 
 # We also check for missing values in the response #
-# as those are often not allowed in frequentist analyses
 colSums( is.na( closeddf[, c("pres.j1", "pres.j2","pres.j3")]) )
 #none are present
 
