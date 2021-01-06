@@ -19,11 +19,13 @@ rm( list = ls() )
 getwd()
 
 # Install new packages from "CRAN" repository. # 
-install.packages( "unmarked" ) #actually a collection of packages 
-
+install.packages( "unmarked" ) #package for estimating occupancy, N-mixtures, 
+#and some multinomial approaches for capture data
+install.packages( "MuMIn") # package for model selection and evaluation
 # load packages:
-library( tidyverse )
-library( unmarked )
+library( tidyverse )#includes dplyr, tidyr and ggplot2
+library( unmarked ) #
+library( MuMIn )
 ## end of package load ###############
 ###################################################################
 #### Load or create data -----------------------------------------
@@ -87,33 +89,63 @@ confint( fm.closed, type = "state" )
 #
 # coefficients for detection submodel:
 confint( fm.closed, type = 'det' )
-# How do we interpret these initial results?
+#
+# Based on the overlap of the 95% CIs for your predictor coefficients, #
+# can you suggest which may be important to each of your responses? #
 # Answer:
-
+# 
+#############end full model ###########
+## Model selection ------------------
 # Indiscriminate model selection has become popular in recent years. #
 # Although we do not believe this is a suitable approach here, we #
-# demonstrate how to run various reduced models (not exhaustive list):
-fm.2 <- occu( ~ 1 + obsv + sagebrush  ~ 1 + sagebrush, data = umf )
-fm.3 <- occu( ~ 1 + obsv + sagebrush ~ 1 + cheatgrass, data = umf )
-fm.4 <- occu( ~ 1 + obsv + sagebrush ~ 1, data = umf )
-fm.5 <- occu( ~ 1 + obsv ~ 1, data = umf )
-fm.6 <- occu( ~ 1 + sagebrush ~ 1, data = umf )
-fm.7 <- occu( ~ 1 ~ 1, data = umf )
+# demonstrate how to run various reduced, additive models: #
+( fm.2 <- occu( ~ 1 + obsv + sagebrush  ~ 1 + sagebrush, data = umf ) )
+( fm.3 <- occu( ~ 1 + obsv + sagebrush ~ 1 + cheatgrass, data = umf ) )
+( fm.4 <- occu( ~ 1 + obsv + sagebrush ~ 1, data = umf ) )
+( fm.5 <- occu( ~ 1 + obsv ~ 1 + sagebrush + cheatgrass, data = umf ) )
+( fm.6 <- occu( ~ 1 + obsv ~ 1 + sagebrush , data = umf ) )
+( fm.7 <- occu( ~ 1 + obsv ~ 1 + cheatgrass, data = umf ) )
+( fm.8 <- occu( ~ 1 + obsv ~ 1, data = umf ) )
+( fm.9 <- occu( ~ 1 + sagebrush ~ 1 + sagebrush + cheatgrass, data = umf ) )
+( fm.10 <- occu( ~ 1 + sagebrush ~ 1 + sagebrush , data = umf ) )
+( fm.11 <- occu( ~ 1 + sagebrush ~ 1 + cheatgrass, data = umf ) )
+( fm.12 <- occu( ~ 1 + sagebrush ~ 1, data = umf ) )
+( fm.13 <- occu( ~ 1 ~ 1 + sagebrush + cheatgrass, data = umf ) ) 
+( fm.14 <- occu( ~ 1 ~ 1 + sagebrush , data = umf ) )
+( fm.15 <- occu( ~ 1 ~ 1 + cheatgrass, data = umf ) )
+( fm.16 <- occu( ~ 1 ~ 1, data = umf ) )
 # Use unmarked function to create a list of model options:
 fms <- fitList( 'psi(sagebrush + cheatgrass)p(obsv+sagebrush)' = fm.closed,
                 'psi(sagebrush)p(obsv+sagebrush)' = fm.2,
                 'psi(cheatgrass)p(obsv+sagebrush)' = fm.3,
                 'psi(.)p(obsv+sagebrush)' = fm.4,
-                'psi(.)p(obsv)' = fm.5,
-                'psi(.)p(sagebrush)' = fm.6,
-                'psi(.)p(.)' = fm.7 )
+                'psi(sagebrush + cheatgrass)p(obsv)' = fm.5,
+                'psi(sagebrush)p(obsv)' = fm.6,
+                'psi(cheatgrass)p(obsv)' = fm.7,
+                'psi(.)p(obsv)' = fm.8,
+                'psi(sagebrush + cheatgrass)p(sagebrush)' = fm.9,
+                'psi(sagebrush)p(sagebrush)' = fm.10,
+                'psi(cheatgrass)p(sagebrush)' = fm.11,
+                'psi(.)p(sagebrush)' = fm.12,
+                'psi(sagebrush + cheatgrass)p(.)' = fm.13,
+                'psi(sagebrush)p(.)' = fm.14,
+                'psi(cheatgrass)p(.)' = fm.15,
+                'psi(.)p(.)' = fm.16 )
 #Note this uses the traditional (.) format to signify an intercept only model
-# We now compare models:
-modSel(fms)
+modSel(fms )
+
+# Alternatively, to run all possible models automatically we can use MuMIn:
+modelList <- MuMIn::dredge( fm.closed, rank = 'AIC' )
+#view model selection table
+modelList
+
 # Which model(s) was/were the most supported? 
 # Answer:
 #
-# When would model selection be suitable?
+# Does this change the inference from running the full model alone? How?
+# Answer:
+# 
+# When is model selection a suitable approach?
 # Answer:
 #
 
@@ -130,13 +162,14 @@ re <- ranef( fm.closed )
 # the use those to estimate occupancy with the bup() function:
 y.est.fm.closed <-round( bup(re, stat="mean" ) ) # Posterior mean
 # Repeat this process for other top model and the null:
-y.est.fm.3 <-round( bup(ranef(fm.3), stat="mean" ) ) # Posterior mean
-y.est.fm.7 <-round( bup(ranef(fm.7), stat="mean" ) ) # Posterior mean
+y.est.fm.5 <-round( bup(ranef(fm.5), stat="mean" ) ) # Posterior mean
+y.est.fm.16 <-round( bup(ranef(fm.16), stat="mean" ) ) # Posterior mean
 # Compare results among them:
-y.est.fm.closed - y.est.fm.3
-y.est.fm.closed - y.est.fm.7
+y.est.fm.closed - y.naive
+y.est.fm.closed - y.est.fm.5
+y.est.fm.closed - y.est.fm.16
 #view together
-data.frame( y.naive, y.est.fm.closed, y.est.fm.3, y.est.fm.7 )
+data.frame( y.naive, y.est.fm.closed, y.est.fm.5, y.est.fm.16 )
 # What do these results tell us about the importance of accounting for effects #
 # that impact detection?
 # Answer:
@@ -169,53 +202,18 @@ backTransform( linearComb( fm.closed, coefficients = c(1,0,0,0,1), type = "det" 
 #
 
 # end of analysis ######
-# Model fit and evaluation -----------------------------------------------
-# After we conduct an analysis we also want to know if the model is any good.
-# A model may be over or under-fit and thus a poor representation of the system #
-# we are trying to understand. Too often ecologists stop when they finish running #
-# their analyses. This is very dangerous. 
-
-# One option to check the adequacy of model fit is to use a parametric bootstrap. #
-# The parboot() function in unmarked simulate datasets from a fitted model, #
-# refit the model, and generate a sampling distribution for a user-specified #
-# fit-statistic #
-
-# As recommended in the manual for binary data, we use a χ2 statistic: #
-# Define the function that calculates the chi-squared statistic: 
-chisq <- function(fm) {
-  umf <- getData(fm)
-  y <- getY(umf)
-  y[y>1] <- 1
-  sr <- fm@sitesRemoved
-  if(length(sr)>0)
-    y <- y[-sr,,drop=FALSE]
-  fv <- fitted(fm, na.rm=TRUE)
-  y[is.na(fv)] <- NA
-  sum((y-fv)^2/(fv*(1-fv)), na.rm=TRUE)
-}
-# run
-pb <- parboot(fm.closed, statistic = chisq, nsim = 100, parallel = FALSE)
-#view results
-pb
-
-
-# calculate residuals
-residuals( fm.closed )
-plot( x = getY( fm.closed@data ), y = fitted( fm.closed ) )
-#sum of squared residuals from model fit
-SSE( fm.closed )
 
 ############################################################################
+################## Save your data and workspace ###################
 
-# if you want to save your workspace, because you are still #
-# working through it use the following command:
+# This time we want to save our workspace so that we have access to all #
+# the objects that we created during our analyses. #
 save.image( "OccAnalysisWorkspace.RData" )
 
-
-##########    save relevant data and workspaces     ###########
-#save closed dataframe in our data folder:
+# Why don't we want to re-run the analyses every time instead?
+# Answer:
+#
 
 ########## End of saving section ##################################
-################## Save your data and workspace ###################
 
 ############# END OF SCRIPT #####################################

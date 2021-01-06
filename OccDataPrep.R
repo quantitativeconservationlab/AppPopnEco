@@ -93,13 +93,13 @@ J <- 3
 #view
 I; yrrange; T; J
 # For our 1st set of data we create a closed population dataframe #
-# that only includes the 1st year data, and columns that are #
+# that only includes the last year data, and columns that are #
 # relevant. Note we don't include time of day because it is only #
 # relevant to point counts.
     # Select obs_df:
 closeddf <- obs_df %>% 
-    #filter only rows for first year:
-    dplyr::filter( year == yrrange[1] ) %>%
+    #filter only rows for last year:
+    dplyr::filter( year == yrrange[T] ) %>%
     #select desired columns to keep:
     dplyr::select( o.sites, year, pres.j1, pres.j2, pres.j3,
             observer.j1, observer.j2, observer.j3 ) 
@@ -108,7 +108,6 @@ head( closeddf ); dim( closeddf )
 
 # How many detections each survey across our 100 sites?
 colSums( closeddf[, c("pres.j1", "pres.j2","pres.j3")])
-#about half the sites each time
 
 # We also check for missing values in the response #
 colSums( is.na( closeddf[, c("pres.j1", "pres.j2","pres.j3")]) )
