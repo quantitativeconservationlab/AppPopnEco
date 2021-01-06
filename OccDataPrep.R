@@ -136,7 +136,8 @@ for( p in 1:length(prednames) ){
   print( a )
 }
 # What do you note? Any apparent issues with these data?
-
+# Answer:
+#
 # Let's plot how predictors vary annually:
 for( p in 1:length(prednames) ){
   # We can also incorporate site variability for habitat:
@@ -159,7 +160,8 @@ for( p in 1:length(prednames) ){
   print( cp )
 }
 # Any notable sites? 
-
+# Answer:
+#
 # Now that we are happy with no outliers, we can check for #
 # correlation among predictors. Why is this important?
 cor( preddf[ , prednames] )
@@ -178,6 +180,7 @@ closeddf <- #select the columns we want to keep in preddf
 # so it is good to check that your code had the desired result
 head( closeddf); dim( closeddf )
 
+########################################################################
 # We repeat the process for our robust design. we want to join #
 # the two dataframes keeping relevant columns 
 head( obs_df )
@@ -198,6 +201,7 @@ head( opendf ); dim( opendf )
 colSums( is.na( opendf[, c("pres.j1", "pres.j2","pres.j3")]) )
 #none are present
 
+################################################################
 ##########    save relevant data and workspaces     ###########
 #save closed dataframe in our data folder:
 write.csv( closeddf, paste( getwd(),"/Data/closedf.csv", sep = "" ),  

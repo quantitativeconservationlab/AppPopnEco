@@ -40,17 +40,19 @@ head( closeddf ); dim( closeddf )
 # the unmarked function has several functions to make data inport #
 # easy
 # We need to define which predictors we will link to which responses #
-# We expect detection to be influenced by observer effects. #
-# We expect occupancy to be influence by habitat (sagebrush and cheatgrass) #
-# Why not to temperature?
+# We expect detection to be influenced by observer effects, but it could also #
+# be affected by amount of cover obstructing visibility (so potentially a #
+# negative relationship with sagebrush). #
+# We expect occupancy to be influenced by habitat (sagebrush and cheatgrass) #
+# Why don't we include temperature in this model for one season?
 # Answer: 
 #
 # Let's define our unmarked dataframe:
-# Start by defining which columns represent response(observed occurrences)
+# Start by defining which columns represent the response (observed occurrences)
 umf <- unmarkedFrameOccu( y = as.matrix( closeddf[ ,c("pres.j1", "pres.j2", "pres.j3")]),
-      # Define predictors for the ecological model, which are at the site level:
+      # Define predictors at the site level:
       siteCovs = closeddf[ ,c("sagebrush", "cheatgrass")],
-    # Note that detection predictors at the survey level are included as a list
+    # Define predictors at the survey level as a list:
     obsCovs = list( obsv = closeddf[ ,c("observer.j1", "observer.j2", "observer.j3")] ) ) 
 #now scale ecological predictors:
 sc <- apply( siteCovs(umf), MARGIN = 2, FUN = scale )
@@ -68,7 +70,8 @@ summary( umf )
 # We are now ready to perform our analysis. Since the number of predictors #
 # is reasonable for the sample size, and there were no issues with #
 # correlation, we focus on a single full, additive model:
-fm.closed <- occu( ~ 1 + obsv ~ 1 + sagebrush + cheatgrass, data = umf )
+fm.closed <- occu( ~ 1 + obsv + sagebrush
+                   ~ 1 + sagebrush + cheatgrass, data = umf )
 # Note that we start with the observation submodel, linking it to the intercept # 
 # and observer effect, obsv. We then define the ecological submodel as related #
 # to sagebrush and cheatgrass. We end by defining the data to be used.
@@ -89,21 +92,25 @@ confint( fm.closed, type = 'det' )
 
 # Indiscriminate model selection has become popular in recent years. #
 # Although we do not believe this is a suitable approach here, we #
-# demonstrate how to run the exhaustive model list:
-fm.2 <- occu( ~ 1 + obsv ~ 1 + sagebrush, data = umf )
-fm.3 <- occu( ~ 1 + obsv ~ 1 + cheatgrass, data = umf )
-fm.4 <- occu( ~ 1 + obsv ~ 1, data = umf )
-fm.5 <- occu( ~ 1 ~ 1, data = umf )
+# demonstrate how to run various reduced models (not exhaustive list):
+fm.2 <- occu( ~ 1 + obsv + sagebrush  ~ 1 + sagebrush, data = umf )
+fm.3 <- occu( ~ 1 + obsv + sagebrush ~ 1 + cheatgrass, data = umf )
+fm.4 <- occu( ~ 1 + obsv + sagebrush ~ 1, data = umf )
+fm.5 <- occu( ~ 1 + obsv ~ 1, data = umf )
+fm.6 <- occu( ~ 1 + sagebrush ~ 1, data = umf )
+fm.7 <- occu( ~ 1 ~ 1, data = umf )
 # Use unmarked function to create a list of model options:
-fms <- fitList( 'psi(sagebrush + cheatgrass)p(obsv)' = fm.closed,
-                'psi(sagebrush)p(obsv)' = fm.2,
-                'psi(cheatgrass)p(obsv)' = fm.3,
-                'psi(.)p(obsv)' = fm.4,
-                'psi(.)p(.)' = fm.5 )
+fms <- fitList( 'psi(sagebrush + cheatgrass)p(obsv+sagebrush)' = fm.closed,
+                'psi(sagebrush)p(obsv+sagebrush)' = fm.2,
+                'psi(cheatgrass)p(obsv+sagebrush)' = fm.3,
+                'psi(.)p(obsv+sagebrush)' = fm.4,
+                'psi(.)p(obsv)' = fm.5,
+                'psi(.)p(sagebrush)' = fm.6,
+                'psi(.)p(.)' = fm.7 )
 #Note this uses the traditional (.) format to signify an intercept only model
 # We now compare models:
 modSel(fms)
-# Which model was the most supported? 
+# Which model(s) was/were the most supported? 
 # Answer:
 #
 # When would model selection be suitable?
@@ -122,18 +129,14 @@ y.naive <- ifelse( rowSums( closeddf[ ,c("pres.j1", "pres.j2", "pres.j3")])>0,1,
 re <- ranef( fm.closed )
 # the use those to estimate occupancy with the bup() function:
 y.est.fm.closed <-round( bup(re, stat="mean" ) ) # Posterior mean
-# Repeat this process for the other models:
-y.est.fm.2 <-round( bup(ranef(fm.2), stat="mean" ) ) # Posterior mean
+# Repeat this process for other top model and the null:
 y.est.fm.3 <-round( bup(ranef(fm.3), stat="mean" ) ) # Posterior mean
-y.est.fm.4 <-round( bup(ranef(fm.4), stat="mean" ) ) # Posterior mean
-y.est.fm.5 <-round( bup(ranef(fm.5), stat="mean" ) ) # Posterior mean
+y.est.fm.7 <-round( bup(ranef(fm.7), stat="mean" ) ) # Posterior mean
 # Compare results among them:
-y.est.fm.closed - y.est.fm.4
-y.est.fm.closed - y.est.fm.3 # the same estimates!
-y.est.fm.closed - y.est.fm.2
-y.naive -y.est.fm.5 #the same estimates
+y.est.fm.closed - y.est.fm.3
+y.est.fm.closed - y.est.fm.7
 #view together
-data.frame( y.naive, y.est.fm.closed, y.est.fm.2, y.est.fm.3, y.est.fm.4)
+data.frame( y.naive, y.est.fm.closed, y.est.fm.3, y.est.fm.7 )
 # What do these results tell us about the importance of accounting for effects #
 # that impact detection?
 # Answer:
@@ -150,13 +153,15 @@ backTransform( linearComb( fm.closed, coefficients = c(1,0,0) ,
 #
 # What about our mean probability of detection for each observer?
 # We start with observer 1:
-backTransform( linearComb( fm.closed, coefficients = c(1,0,0,0), type = "det" ) )
+backTransform( linearComb( fm.closed, coefficients = c(1,0,0,0,0), type = "det" ) )
 #observer 2:
-backTransform( linearComb( fm.closed, coefficients = c(1,1,0,0), type = "det" ) )
+backTransform( linearComb( fm.closed, coefficients = c(1,1,0,0,0), type = "det" ) )
 #observer 3:
-backTransform( linearComb( fm.closed, coefficients = c(1,0,1,0), type = "det" ) )
+backTransform( linearComb( fm.closed, coefficients = c(1,0,1,0,0), type = "det" ) )
 #observer 4:
-backTransform( linearComb( fm.closed, coefficients = c(1,0,0,1), type = "det" ) )
+backTransform( linearComb( fm.closed, coefficients = c(1,0,0,1,0), type = "det" ) )
+#mean occupancy for obsv 1 at mean % sagebrush:
+backTransform( linearComb( fm.closed, coefficients = c(1,0,0,0,1), type = "det" ) )
 
 # What do these results tell us about what drives occupancy and detection of #
 #  Piute ground squirrels in 2007?
@@ -192,7 +197,8 @@ chisq <- function(fm) {
 pb <- parboot(fm.closed, statistic = chisq, nsim = 100, parallel = FALSE)
 #view results
 pb
-plot( pb )
+
+
 # calculate residuals
 residuals( fm.closed )
 plot( x = getY( fm.closed@data ), y = fitted( fm.closed ) )

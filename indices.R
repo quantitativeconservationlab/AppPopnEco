@@ -88,12 +88,15 @@ Nclosed[2] #Note that you check your output all the time!
 
 # We can then calculate the finite rate of increase, R, as the difference 
 # between births and deaths per capita:
-R <- ( B / Nclosed[1] ) - ( D / Nclosed[1] ) #Notice how we turn total to per capita values?
+R <- ( B / Nclosed[1] ) - ( D / Nclosed[1] ) 
+#Notice how we turn total to per capita values
 
 # The population at N[t+1] can be calculated as:
 Nclosed[1] +  ( Nclosed[1] * R ) 
 # Did we get the same result?
-
+# Answer:
+#
+#
 # Now we move to the classic model of Exponential growth, designed for #
 # populations capable of continuous growth with overlapping generations #
 # We start by calculating the intrinsic rate of increase, sometimes known #
@@ -104,7 +107,8 @@ r <- log( Nclosed[2] ) - log( Nclosed[1] )
 # We can then calculate Nclosed[2] as:
 Nclosed[1] * exp( r )
 # Did we get the same result?
-
+# Answer:
+# 
 # Note that the population grows if r > 0, is stationary if r = 0, #
 # declines if r < 0. When r > 0, and that the change is exponential.
 
@@ -114,7 +118,6 @@ Nclosed[1] * exp( r )
 
 # Start defining how many periods we want to project to:
 T <- 50
-
 # build a loop that moves iteratively through each time period, t
 for( t in 1:(T - 1) ){
    Nclosed[ t + 1 ] <- round( Nclosed[ t ] * exp( r ), digits = 0 )
@@ -182,6 +185,8 @@ catch <- sample( 50:300, size = nets, replace = TRUE )
 # what was our catch?
 catch
 # what is our catch per unit effort? #
+# Answer:
+#
 # We calculate it as total catch / number of nets put out:#
 sum( catch ) / nets
 
@@ -321,10 +326,10 @@ print( N_est )
 # Answer:
 # What if you increase the number of sampling sessions to T = 40?
 # Answer:
-
+#
 # What does this tell you about the influence of low detection on this index?
 # Answer:
-
+#
 ########################################################################
 
 ###################   END OF SCRIPT  ################################
