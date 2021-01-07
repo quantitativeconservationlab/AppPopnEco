@@ -42,7 +42,6 @@ load( "OccAnalysisWorkspace.RData" )
 
 ###########end of loading ######
 ##########################################################################
-
 # Model fit and evaluation -----------------------------------------------
 
 # We assess goodness of fit (GoF) on detection frequencies, which relies on a #
@@ -137,15 +136,182 @@ plot(pb, xlab = c("SSE", "Chisq", "FT") )
 
 ######## end of model evaluation ##############
 ##### Producing model output ##############
+# Now that we have evaluated the value of our model we can produce #
+# some output. If our aim is inference on what drives occupancy and #
+# detection of Piute ground squirrels at the NCA, we would want to #
+# plot the relationships between our model predictors and responses #
 
+# Using our global model we estimate partial prediction plots #
+# for our predictors. These plot the relationship between the #
+# response and predictor of interest, while keeping the remaining #
+# predictors at their mean values. # 
+# What is the mean of our predictors?
+# Answer:
+#
+# To create nice plots we need to create new vectors with evenly #
+# spaced predictors within their actual observed range: #
+# how many values do we use:
+n <- 100
+# we use the observed values to define our range:
+sagebrush <- seq( min( closeddf[,"sagebrush"]),max( closeddf[,"sagebrush"]),
+                  length.out = n )
+cheatgrass <- seq( min( closeddf[,"cheatgrass"]),max( closeddf[,"cheatgrass"]),
+                   length.out = n )
+#standardize them
+sage.std <- scale( sagebrush )
+cheat.std <- scale( cheatgrass )
+#combine standardized predictor into a new dataframe to predict partial relationship
+# with sagebrush. We replace value of other predictor with its mean
+sageData <- data.frame( sagebrush = sage.std, cheatgrass = 0 )
+#predict partial relationship between sagebrush and occupancy
+pred.occ.sage <- predict( fm.closed, type = "state", newdata = sageData, 
+                          appendData = TRUE )
+#view
+head( pred.occ.sage ); dim( pred.occ.sage )
+
+#combine standardized predictor into a new dataframe to predict partial relationship
+# with cheatgrass. We replace value of other predictor with its mean
+cheatData <- data.frame( sagebrush = 0, cheatgrass = cheat.std )
+#predict partial relationship between sagebrush and occupancy
+pred.occ.cheat <- predict( fm.closed, type = "state", newdata = cheatData, 
+                          appendData = TRUE )
+
+#combine standardized predictor into a new dataframe to predict partial relationship
+# with sagebrush. We set observer effect as tech 1
+sageDet <- data.frame( obsv = factor( "tech.1", levels = c("tech.1", "tech.2",
+                  "tech.3", "tech.4") ), sagebrush = sage.std )
+#predict partial relationship between sagebrush and detection
+pred.det.sage <- predict( fm.closed, type = "det", newdata = sageDet, 
+                          appendData = TRUE )
+#now for observer effects:
+obsvDet <- data.frame( obsv = factor( c("tech.1", "tech.2","tech.3", "tech.4"), 
+                       levels = c("tech.1", "tech.2","tech.3", "tech.4") ), 
+                      sagebrush = 0 )
+#predict partial relationship between observer effects and detection
+pred.det.obsv <- predict( fm.closed, type = "det", newdata = obsvDet, 
+                          appendData = TRUE )
+
+# create plots
+#Starting with sagebrush and occupancy:
+# select the predicted values we want to plot and combine with unscaled predictor
+sagep <- cbind( pred.occ.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %>%
+  # define x and y values
+  ggplot(., aes( x = sagebrush, y = Predicted ) ) + 
+  #choose preset look
+  theme_bw( base_size = 15 ) +
+  # add labels
+  labs( x = "Sagebrush (%)", y = "Predicted occupancy" ) +
+  # add band of confidence intervals
+  geom_smooth( aes(ymin = lower, ymax = upper ), 
+               stat = "identity",
+              size = 1.5, alpha = 0.5, color = "grey" ) +
+  # add mean line on top
+  geom_line( size = 2 ) 
+#view
+sagep
+
+#Now cheatgrass and occupancy:
+# select the predicted values we want to plot and combine with unscaled predictor
+cheatp <- cbind( pred.occ.cheat[,c("Predicted", "lower", "upper") ], cheatgrass ) %>%
+  # define x and y values
+  ggplot(., aes( x = cheatgrass, y = Predicted ) ) + 
+  #choose preset look
+  theme_bw( base_size = 15 ) +
+  # add labels
+  labs( x = "Cheatgrass (%)", y = "Predicted occupancy" ) +
+  # add band of confidence intervals
+  geom_smooth( aes(ymin = lower, ymax = upper ), 
+               stat = "identity",
+               size = 1.5, alpha = 0.5, color = "grey" ) +
+  # add mean line on top
+  geom_line( size = 2 ) 
+#view
+cheatp
+
+# Now sagebrush and detection:
+# select the predicted values we want to plot and combine with unscaled predictor
+sagep.det <- cbind( pred.det.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %>%
+  # define x and y values
+  ggplot(., aes( x = sagebrush, y = Predicted ) ) + 
+  #choose preset look
+  theme_bw( base_size = 15 ) +
+  # add labels
+  labs( x = "Sagebrush (%)", y = "Predicted detection" ) +
+  # add band of confidence intervals
+  geom_smooth( aes(ymin = lower, ymax = upper ), 
+               stat = "identity",
+               size = 1.5, alpha = 0.5, color = "grey" ) +
+  # add mean line on top
+  geom_line( size = 2 ) 
+#view
+sagep.det
+
+# Now sagebrush and detection:
+# select the predicted values we want to plot and combine with unscaled predictor
+obsvp.det <- pred.det.obsv %>%
+  # define x and y values
+  ggplot(., aes( x = obsv, y = Predicted, color = obsv ) ) + 
+  #choose preset look
+  theme_bw( base_size = 15 ) +
+  #remove legend
+  theme( legend.position = "none" ) +
+  # add labels
+  labs( x = "Observer", y = "Predicted detection" ) +
+  #add mean detection for each observer
+  geom_point( size = 4 ) +
+  # add confidence intervals
+  geom_errorbar( aes(ymin = lower, ymax = upper ), 
+               size = 1.5, width = 0.3 ) 
+#view
+obsvp.det
+
+# If you were reporting these in a manuscript, which (if any) would you #
+# leave out? Why? 
+# Answer:
+#
+#### end model results section #############
 ###################
 ############################################################################
 ################## Save your data and workspace ###################
 
-# This time we want to save our workspace so that we have access to all #
-# the objects that we created during our analyses. #
-save.image( "OccResultsWorkspace.RData" )
+#save the plot objects we created 
+#start by calling the file where you will save it
+tiff( 'Data/SageXOcc.tiff',
+      height = 10, width = 12, units = 'cm', 
+      compression = "lzw", res = 400 )
+#call the plot
+sagep
+#end connection
+dev.off()
+#Now the cheatgrass x occupancy plot:
+tiff( 'Data/CheatXOcc.tiff',
+      height = 10, width = 12, units = 'cm', 
+      compression = "lzw", res = 400 )
+#call the plot
+cheatp
+#end connection
+dev.off()
+#save the sagebrush x detection plot
+tiff( 'Data/SageXDet.tiff',
+      height = 10, width = 12, units = 'cm', 
+      compression = "lzw", res = 400 )
+#call the plot
+sagep.det
+#end connection
+dev.off()
 
+#save the observer x detection plot
+tiff( 'Data/ObsvXDet.tiff',
+      height = 10, width = 10, units = 'cm', 
+      compression = "lzw", res = 400 )
+#call the plot
+obsvp.det
+#end connection
+dev.off()
+
+# We save the workspace with our new objects in case we want to extract/modify #
+# them #
+save.image( "OccResultsWorkspace.RData" )
 
 
 ########## End of saving section ##################################

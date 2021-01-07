@@ -95,10 +95,12 @@ confint( fm.closed, type = 'det' )
 # Answer:
 # 
 #############end full model ###########
-## Model selection ------------------
+###### Model selection ---------------------------------------
 # Indiscriminate model selection has become popular in recent years. #
 # Although we do not believe this is a suitable approach here, we #
-# demonstrate how to run various reduced, additive models: #
+# demonstrate two approaches for running various reduced, additive models: #
+
+# We start by manually running alternative models:
 ( fm.2 <- occu( ~ 1 + obsv + sagebrush  ~ 1 + sagebrush, data = umf ) )
 ( fm.3 <- occu( ~ 1 + obsv + sagebrush ~ 1 + cheatgrass, data = umf ) )
 ( fm.4 <- occu( ~ 1 + obsv + sagebrush ~ 1, data = umf ) )
@@ -114,7 +116,7 @@ confint( fm.closed, type = 'det' )
 ( fm.14 <- occu( ~ 1 ~ 1 + sagebrush , data = umf ) )
 ( fm.15 <- occu( ~ 1 ~ 1 + cheatgrass, data = umf ) )
 ( fm.16 <- occu( ~ 1 ~ 1, data = umf ) )
-# Use unmarked function to create a list of model options:
+# Use unmarked function we create a list of model options:
 fms <- fitList( 'psi(sagebrush + cheatgrass)p(obsv+sagebrush)' = fm.closed,
                 'psi(sagebrush)p(obsv+sagebrush)' = fm.2,
                 'psi(cheatgrass)p(obsv+sagebrush)' = fm.3,
@@ -131,12 +133,15 @@ fms <- fitList( 'psi(sagebrush + cheatgrass)p(obsv+sagebrush)' = fm.closed,
                 'psi(sagebrush)p(.)' = fm.14,
                 'psi(cheatgrass)p(.)' = fm.15,
                 'psi(.)p(.)' = fm.16 )
-#Note this uses the traditional (.) format to signify an intercept only model
-modSel(fms )
+#Note this uses the traditional (.) format to signify an intercept only model.
+# We use unmarked function modSel() to compare models using AIC:
+unmarked::modSel(fms )
 
-# Alternatively, to run all possible models automatically we can use MuMIn:
+# Alternatively, to run all possible model combinations automatically we can #
+# use the dredge() function in the MuMIn package. This package allows you to #
+# select alternative Information Criterion metrics including AIC, AICc, QAIC, BIC # 
 modelList <- MuMIn::dredge( fm.closed, rank = 'AIC' )
-#view model selection table
+#view model selection table:
 modelList
 
 # Which model(s) was/were the most supported? 
@@ -179,8 +184,8 @@ data.frame( y.naive, y.est.fm.closed, y.est.fm.5, y.est.fm.16 )
 backTransform( linearComb( fm.closed, coefficients = c(1,0,0) , 
                            type = "state" ) )
 # Note we transform the occupancy response (defined as state by unmarked) back #
-# from the logit scale. The ecological model has 1 intercept and two predictors. The predictors are #
-# scaled so their mean is 0, the intercept is 1, thus: c(1,0,0).
+# from the logit scale. The ecological model has 1 intercept and two predictors.#
+# The predictors are scaled so their mean is 0, the intercept is 1, thus: c(1,0,0).#
 # What was our estimated occupancy?
 # Answer:
 #
@@ -197,7 +202,7 @@ backTransform( linearComb( fm.closed, coefficients = c(1,0,0,1,0), type = "det" 
 backTransform( linearComb( fm.closed, coefficients = c(1,0,0,0,1), type = "det" ) )
 
 # What do these results tell us about what drives occupancy and detection of #
-#  Piute ground squirrels in 2007?
+# Piute ground squirrels in 2007?
 # Answer:
 #
 
