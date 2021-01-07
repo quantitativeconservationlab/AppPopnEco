@@ -11,21 +11,21 @@
 ###  This is the first script. As you read it note its format,    #####
 ### note the heavy editing, the break up into sections for each  #####
 ### stage of your work flow. Some of these sections will be      #####
-### common to all scripts you write, like the 'install and load   #####
-### of packages' section at the start, or the 'save' section at the ####
-### end of your script. Also note the script ends with an end of  ###
-### script line to prevent readers from accidentally missing some ###
-### lines of code. Note the spacing through out. Note the constant ###
-### checks after each line of code. This  makes it easier to debug ##
-### your code. Make sure you follow these good coding practices #####
-### as you adapt code to make it your own.                       ####
+### common to all scripts, like the 'initial set up' section     ####
+### Note the script ends with an end of script line to prevent   ####
+### readers from accidentally missing some lines of code.        ###
+### Note the spacing through out. Don't assume your line of code ###
+### worked. Check that each line worked. This helps debugping.   ###
+### Ensure that you follow these good coding practices as you    ####
+### adapt code to make it your own. Do you have other good        ###
+### coding practices?                                             ###
 ### NEVER RUN BIG CHUNKS OF CODE YOU DO NOT UNDERSTAND. NEVER RUN ###
 ### SECTIONS OF MULTIPLE SCRIPTS RANDOMLY. THAT REMOVES THE ABILITY ###
 ### FOR YOUR WORKFLOW TO BE REPLICABLE.                           ###
 ###                                                               ###
 ###                   Let's get started!                          ###
 #####################################################################
-##### Loading relevant packages ------------------------------------
+##### Setting up your workspace ------------------------------------
 # Clean your workspace to reset your R environment. #
 rm( list = ls() )
 # This removes existing objects you may have created in previous sessions. #
@@ -39,19 +39,6 @@ rm( list = ls() )
 # become your working directory #
 # I recommend you do this. If you don't know where you are check:
 getwd()
-
-# Install new packages from "CRAN" repository with the #
-# install.packages( "PackageName" ) function #
-# (note the package names are in quotation marks). #
-# If you previously installed the packages, load the  ones you need # 
-# using the library() function.You only need to install packages once, #
-# however, you must reload the packages every time you start up RStudio. # 
-
-install.packages( "tidyverse" ) #actually a collection of packages 
-# including dplyr, lubridate, tidyr, ggplot2 and more.
-
-# load packages:
-library( tidyverse ) 
 
 ###################################################################
 #### Load or create data -----------------------------------------
@@ -130,7 +117,8 @@ plot( 1:T, Nclosed )
 # Do this here and add the curves to your plot using lines()
 # Answer:
 
-###### INDICES OF ABUNDANCE - PERILS OF IGNORING IMPERFECT DETECTION ###
+#### End of classic models section ######################
+###### INDICES OF ABUNDANCE - PERILS OF IGNORING IMPERFECT DETECTION #####
 # Now that we explored some classic theoretical models, how do we #
 # get estimates of population size, or abundance to plug into our models? #
 # Field work! What techniques can we use to sample abundance in the field? #
@@ -325,6 +313,6 @@ print( N_est )
 # What does this tell you about the influence of low detection on this index?
 # Answer:
 
-########################################################################
+#############end of indices section #########################
 
 ###################   END OF SCRIPT  ################################
