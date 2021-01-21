@@ -55,7 +55,7 @@ getwd()
 # starting with the initial population size at time t
 N <- 500
 # we can then define B, I, D, E:
-B <- 150; D <- 90; I <- 70; E <- 30 
+B <- 150; D <- 90; I <- 70; E <- 30
 #note semicolons allow you to run multiple commands in the same line
 
 # We create our discrete model to calculate N[t+1]
@@ -105,6 +105,8 @@ Nclosed[1] * exp( r )
 
 # Start defining how many periods we want to project to:
 T <- 50
+#new r 
+r <- -0.95
 # build a loop that moves iteratively through each time period, t
 for( t in 1:(T - 1) ){
    Nclosed[ t + 1 ] <- round( Nclosed[ t ] * exp( r ), digits = 0 )
@@ -113,7 +115,9 @@ for( t in 1:(T - 1) ){
 # check
 Nclosed
 # Plot using base plot
-plot( 1:T, Nclosed ) 
+plot(x = 1:T, y = Nclosed ) 
+points( x = 1:T, y = Nclosed )
+
 # on the x axis we plot the time periods, N[t] on the y axis
 
 # Now modify your r and/or T to see how that changes the shape of your curve #
@@ -127,10 +131,13 @@ plot( 1:T, Nclosed )
 # Field work! What techniques can we use to sample abundance in the field? #
 # Name some here:
 # Answer:
-#
+# scat sampling, point counts, plot counts, distance sampling,
+# camera traps, trapping, nets, pitfall traps,  howling, hooting calls,
+# 1m quadrats, radiotracking, sticky traps, road kills, nest searches,
+# 
 # Add whether you were able to mark individuals with each technique you listed
 # Answer:
-#
+# 
 # Were those marks unique, permanent? What are the implications for your #
 # ability to estimate abundance through time? #
 # Answer:
@@ -280,12 +287,13 @@ P <- runif( n = 10, min = 0.4, max = 0.6 )
 P
 # Now we simulate data for each capture probability, printing out #
 # our estimate of abundance, N_est, for each:
-for( p in P ){
 # Start by simulating the number of animals captured in trapping surveys #
 # assuming capture probability is p
-C <- N * sample( p, T, replace = TRUE ) 
+C <- N * sample( P, T, replace = TRUE ) 
+print( C )
 # create vector for newly marked individuals, assign newM[1] = C[1]:
 newM <- c( C[1], rep(NA, T-1) )
+print( newM )
 #Set vector of marked individuals, available for capture, with M[1] = 0:
 M <- c( 0, rep(NA, T-1) )
 # Loop iteratively over following surveys:
@@ -306,7 +314,7 @@ R <- C - newM
 N_est <- sum( C * M ) / sum( R )
 # print our estimate as we run through the loop
 print( N_est )
-} #end of looping over capture probabilities
+
 
 # Repeat the exercise above in a situation where you have low detection #
 # so P between 0.1 and 0.2
@@ -317,12 +325,10 @@ print( N_est )
 #
 # What does this tell you about the influence of low detection on this index?
 # Answer:
-<<<<<<< HEAD
 
 #############end of indices section #########################
-=======
 #
 ########################################################################
->>>>>>> 5e1a8e8d0b53f634ed85639e2be94abeb5e4621e
+
 
 ###################   END OF SCRIPT  ################################
