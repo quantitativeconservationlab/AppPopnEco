@@ -274,9 +274,9 @@ round( n2/N_est, 2)
 
 #Let's simulate some data first:
 # Let's define what our true population abundance is:
-N <- 5000
-# our total number of surveys
-T <- 30
+N <- 500
+# our total number of replicate surveys
+J <- 5
 # let's assume that capture probability is fairly constant among surveys #
 # because we are using the same protocol including standardizing weather #
 #  conditions, observer, and number of traps #
@@ -285,36 +285,40 @@ T <- 30
 # drawing capture probabilities in the range between 0.4 and 0.6
 P <- runif( n = 10, min = 0.4, max = 0.6 )
 P
+#why 10? just to introduce some variability in the detection. 
+
 # Now we simulate data for each capture probability, printing out #
 # our estimate of abundance, N_est, for each:
-# Start by simulating the number of animals captured in trapping surveys #
-# assuming capture probability is p
-C <- N * sample( P, T, replace = TRUE ) 
+# Start by simulating the number of animals captured in each of 
+# J=10 trapping surveys #
+# assume capture probability is P
+C <- N * sample( P, J, replace = TRUE ) 
 print( C )
 # create vector for newly marked individuals, assign newM[1] = C[1]:
-newM <- c( C[1], rep(NA, T-1) )
-print( newM )
+newM <- c( C[1], rep(NA, J-1) )
 #Set vector of marked individuals, available for capture, with M[1] = 0:
-M <- c( 0, rep(NA, T-1) )
+M <- c( 0, rep(NA, J-1) )
 # Loop iteratively over following surveys:
-for( t in 2:T ){
+for( j in 2:J ){
   # newly marked individuals in later surveys are drawn randomly 
-  # to be less than half of those captured, unless
+  # to be less than a third of those captured, unless
   # M > N at which point there are no new individuals to mark
-  newM[t] <- ifelse( M[t-1] >= N, 0, sample(1:(C[t]/2),1 ) ) 
+  newM[j] <- ifelse( M[j-1] >= N, 0, sample(1:(C[j]/3),1 ) ) 
   # when newM makes M > N correct it to make it N:
-  newM[t] <- ifelse( (newM[t] + M[t-1]) >= N, (N - M[t-1]), newM[t] )
+  newM[j] <- ifelse( (newM[j] + M[j-1]) >= N, (N - M[j-1]), newM[j] )
   # update the number of marked individuals available for capture:
-  M[t] <- sum( newM[1:t] )
+  M[j] <- sum( newM[1:j] )
 }
+#print results
+newM
 # recaptures are the individuals that were not newly marked each survey:
 R <- C - newM 
+R
 # We have simulated data for capture probability p.
 # Now use simulated values to estimate abundance using the Schanabel index:
 N_est <- sum( C * M ) / sum( R )
 # print our estimate as we run through the loop
 print( N_est )
-
 
 # Repeat the exercise above in a situation where you have low detection #
 # so P between 0.1 and 0.2
