@@ -246,8 +246,7 @@ sagep.det <- cbind( pred.det.sage[,c("Predicted", "lower", "upper") ], sagebrush
 #view
 sagep.det
 
-# Now sagebrush and detection:
-# select the predicted values we want to plot and combine with unscaled predictor
+# Now observer and detection:
 obsvp.det <- pred.det.obsv %>%
   # define x and y values
   ggplot(., aes( x = obsv, y = Predicted, color = obsv ) ) + 
