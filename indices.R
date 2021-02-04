@@ -11,21 +11,21 @@
 ###  This is the first script. As you read it note its format,    #####
 ### note the heavy editing, the break up into sections for each  #####
 ### stage of your work flow. Some of these sections will be      #####
-### common to all scripts you write, like the 'install and load   #####
-### of packages' section at the start, or the 'save' section at the ####
-### end of your script. Also note the script ends with an end of  ###
-### script line to prevent readers from accidentally missing some ###
-### lines of code. Note the spacing through out. Note the constant ###
-### checks after each line of code. This  makes it easier to debug ##
-### your code. Make sure you follow these good coding practices #####
-### as you adapt code to make it your own.                       ####
+### common to all scripts, like the 'initial set up' section     ####
+### Note the script ends with an end of script line to prevent   ####
+### readers from accidentally missing some lines of code.        ###
+### Note the spacing through out. Don't assume your line of code ###
+### worked. Check that each line worked. This helps debugping.   ###
+### Ensure that you follow these good coding practices as you    ####
+### adapt code to make it your own. Do you have other good        ###
+### coding practices?                                             ###
 ### NEVER RUN BIG CHUNKS OF CODE YOU DO NOT UNDERSTAND. NEVER RUN ###
 ### SECTIONS OF MULTIPLE SCRIPTS RANDOMLY. THAT REMOVES THE ABILITY ###
 ### FOR YOUR WORKFLOW TO BE REPLICABLE.                           ###
 ###                                                               ###
 ###                   Let's get started!                          ###
 #####################################################################
-##### Loading relevant packages ------------------------------------
+##### Setting up your workspace ------------------------------------
 # Clean your workspace to reset your R environment. #
 rm( list = ls() )
 # This removes existing objects you may have created in previous sessions. #
@@ -39,19 +39,6 @@ rm( list = ls() )
 # become your working directory #
 # I recommend you do this. If you don't know where you are check:
 getwd()
-
-# Install new packages from "CRAN" repository with the #
-# install.packages( "PackageName" ) function #
-# (note the package names are in quotation marks). #
-# If you previously installed the packages, load the  ones you need # 
-# using the library() function.You only need to install packages once, #
-# however, you must reload the packages every time you start up RStudio. # 
-
-install.packages( "tidyverse" ) #actually a collection of packages 
-# including dplyr, lubridate, tidyr, ggplot2 and more.
-
-# load packages:
-library( tidyverse ) 
 
 ###################################################################
 #### Load or create data -----------------------------------------
@@ -68,7 +55,7 @@ library( tidyverse )
 # starting with the initial population size at time t
 N <- 500
 # we can then define B, I, D, E:
-B <- 150; D <- 90; I <- 70; E <- 30 
+B <- 150; D <- 90; I <- 70; E <- 30
 #note semicolons allow you to run multiple commands in the same line
 
 # We create our discrete model to calculate N[t+1]
@@ -118,6 +105,8 @@ Nclosed[1] * exp( r )
 
 # Start defining how many periods we want to project to:
 T <- 50
+#new r 
+r <- -0.95
 # build a loop that moves iteratively through each time period, t
 for( t in 1:(T - 1) ){
    Nclosed[ t + 1 ] <- round( Nclosed[ t ] * exp( r ), digits = 0 )
@@ -126,23 +115,29 @@ for( t in 1:(T - 1) ){
 # check
 Nclosed
 # Plot using base plot
-plot( 1:T, Nclosed ) 
+plot(x = 1:T, y = Nclosed ) 
+points( x = 1:T, y = Nclosed )
+
 # on the x axis we plot the time periods, N[t] on the y axis
 
 # Now modify your r and/or T to see how that changes the shape of your curve #
 # Do this here and add the curves to your plot using lines()
 # Answer:
 
-###### INDICES OF ABUNDANCE - PERILS OF IGNORING IMPERFECT DETECTION ###
+#### End of classic models section ######################
+###### INDICES OF ABUNDANCE - PERILS OF IGNORING IMPERFECT DETECTION #####
 # Now that we explored some classic theoretical models, how do we #
 # get estimates of population size, or abundance to plug into our models? #
 # Field work! What techniques can we use to sample abundance in the field? #
 # Name some here:
 # Answer:
-#
+# scat sampling, point counts, plot counts, distance sampling,
+# camera traps, trapping, nets, pitfall traps,  howling, hooting calls,
+# 1m quadrats, radiotracking, sticky traps, road kills, nest searches,
+# 
 # Add whether you were able to mark individuals with each technique you listed
 # Answer:
-#
+# 
 # Were those marks unique, permanent? What are the implications for your #
 # ability to estimate abundance through time? #
 # Answer:
@@ -279,9 +274,9 @@ round( n2/N_est, 2)
 
 #Let's simulate some data first:
 # Let's define what our true population abundance is:
-N <- 5000
-# our total number of surveys
-T <- 30
+N <- 500
+# our total number of replicate surveys
+J <- 5
 # let's assume that capture probability is fairly constant among surveys #
 # because we are using the same protocol including standardizing weather #
 #  conditions, observer, and number of traps #
@@ -290,35 +285,40 @@ T <- 30
 # drawing capture probabilities in the range between 0.4 and 0.6
 P <- runif( n = 10, min = 0.4, max = 0.6 )
 P
+#why 10? just to introduce some variability in the detection. 
+
 # Now we simulate data for each capture probability, printing out #
 # our estimate of abundance, N_est, for each:
-for( p in P ){
-# Start by simulating the number of animals captured in trapping surveys #
-# assuming capture probability is p
-C <- N * sample( p, T, replace = TRUE ) 
+# Start by simulating the number of animals captured in each of 
+# J=10 trapping surveys #
+# assume capture probability is P
+C <- N * sample( P, J, replace = TRUE ) 
+print( C )
 # create vector for newly marked individuals, assign newM[1] = C[1]:
-newM <- c( C[1], rep(NA, T-1) )
+newM <- c( C[1], rep(NA, J-1) )
 #Set vector of marked individuals, available for capture, with M[1] = 0:
-M <- c( 0, rep(NA, T-1) )
+M <- c( 0, rep(NA, J-1) )
 # Loop iteratively over following surveys:
-for( t in 2:T ){
+for( j in 2:J ){
   # newly marked individuals in later surveys are drawn randomly 
-  # to be less than half of those captured, unless
+  # to be less than a third of those captured, unless
   # M > N at which point there are no new individuals to mark
-  newM[t] <- ifelse( M[t-1] >= N, 0, sample(1:(C[t]/2),1 ) ) 
+  newM[j] <- ifelse( M[j-1] >= N, 0, sample(1:(C[j]/3),1 ) ) 
   # when newM makes M > N correct it to make it N:
-  newM[t] <- ifelse( (newM[t] + M[t-1]) >= N, (N - M[t-1]), newM[t] )
+  newM[j] <- ifelse( (newM[j] + M[j-1]) >= N, (N - M[j-1]), newM[j] )
   # update the number of marked individuals available for capture:
-  M[t] <- sum( newM[1:t] )
+  M[j] <- sum( newM[1:j] )
 }
+#print results
+newM
 # recaptures are the individuals that were not newly marked each survey:
 R <- C - newM 
+R
 # We have simulated data for capture probability p.
 # Now use simulated values to estimate abundance using the Schanabel index:
 N_est <- sum( C * M ) / sum( R )
 # print our estimate as we run through the loop
 print( N_est )
-} #end of looping over capture probabilities
 
 # Repeat the exercise above in a situation where you have low detection #
 # so P between 0.1 and 0.2
@@ -329,7 +329,10 @@ print( N_est )
 #
 # What does this tell you about the influence of low detection on this index?
 # Answer:
+
+#############end of indices section #########################
 #
 ########################################################################
+
 
 ###################   END OF SCRIPT  ################################
