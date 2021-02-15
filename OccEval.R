@@ -90,7 +90,7 @@ unmarked::modSel(rms, nullmod = "psi(.)p(.)" )
 # taken with a grain of salt. 
 
 # We could also compare all the models we run against our null:
-# modSel(fms, nullmod = "psi(.)p(.)" )
+modSel(fms, nullmod = "psi(.)p(.)" )
 
 
 # We can also estimate additional fit statistics borrowing a function #
