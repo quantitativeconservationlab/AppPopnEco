@@ -183,7 +183,21 @@ unmarked::modSel(rms, nullmod = "null" )
 #########################################################################
 ##### Summarizing model output ##############
 # Now we plot the results we are interested in.
-# We start with partial prediction plots for our ecological submodels #
+# We can see how mean occupancy changed through time by extracting values from
+# the projected.mean data table:
+fm.dyn@projected.mean
+# select occupied row and combine it with year
+data.frame( year = sort( unique( robdf$year) ),
+            occupied = as.vector( fm.dyn@projected.mean["occupied",] ) ) %>%
+  ggplot(., aes( x = year, y = occupied ) ) +
+  theme_bw(base_size = 15 ) + 
+  geom_line( size = 2 )
+
+# What is happening to Piute ground squirrels at the NCA?
+# Answer:
+# 
+# We now see the effects that our predictors are having on this trend. #
+# by plotting partial prediction plots for our ecological submodels #
 # Here I focus only on those with 95% CIs not overlapping zero:
 # We start by creating our datasets to predict over
 # how many values do we use:
@@ -268,7 +282,7 @@ cheatp
 # Save workspace:
 save.image( "RobOccResults.RData" )
 
-#save the plot objects we created 
+#save the plot objects you need for your presentation
 #start by calling the file where you will save it
 tiff( 'Data/SageXCol.tiff',
       height = 10, width = 12, units = 'cm', 
