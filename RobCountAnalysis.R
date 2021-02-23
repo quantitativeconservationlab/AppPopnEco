@@ -11,6 +11,10 @@
 ## environmental predictors at the site. (2) an observation submodel ##
 ## linking our detection probability to relevant predictors.         ##
 ##                                                                   ##
+# Now let's simulate population growth for the following years using a #
+# Gompertz model adapted to discrete time steps. #
+# See: Cruz et al. 2013 PLOS ONE 8(9):e73544 for example.
+
 #######################################################################
 ##### Set up your workspace and load relevant packages -----------
 # Clean your workspace to reset your R environment. #
