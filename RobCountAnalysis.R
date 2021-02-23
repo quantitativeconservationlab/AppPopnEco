@@ -61,6 +61,47 @@ summary( umf )
 
 ### end data prep -----------
 ### Analyze data ------------------------------------------
+# Now let's simulate population growth for the following years using a #
+# Gompertz model adapted to discrete time steps. #
+# See: Cruz et al. 2013 PLOS ONE 8(9):e73544 for example.
+
+# Female Piute ground squirrels give birth to an average of 5-10 young #
+# Reproduction is affected by food availability early in the #
+# season when they come out of hibernation, with colder Feb temperatures #
+# signifying less food, lower reproduction and also lower survival of #
+# adults. 
+# Survival is also affected by really hot temperatures, with individuals #
+# unable to forage when temperatures are too hot. So we expect a #
+# negative relationship between survival and max T in Apr-May #
+#let's define these relationships
+# Lastly, survival is expected to be higher in sites with more sagebrush #
+
+# Abundance, N[t+1] is determined by a Gompertz process driven by site #
+# occupancy, O[t+1], abundance in the previous season, N[t], population #
+# growth rate, Psi[t] and density-dependence, with Poisson error. #
+# In addition, potential migrants may be added to a site depending on 
+# a binomial process driven by a random draw of dispersers and the probability #
+# that the site was colonized that year, Gamma[t]. 
+
+#Estimate the population growth rate for that site, that year, Psi, by adding
+# a density-dependent term when the site was occupied in the previous season:
+Psi <- exp( log.psi.df[ ,yrnames[t]] + ( -0.05 * log( Ndf[,t] + 1 ) ) )
+
+# Determine the number of survivors, based on current site occupancy, Odf[t+1], #
+# previous abundance, N[t], and population growth rate, Psi[t]. The later takes #
+# into account covariates and reflects births and deaths in the population:
+S <- rpois( n = Io, lambda = Ndf[,t] * Psi * Odf[,t+1] )
+
+# Define potential migrants, M, as the product of a binomial process drawing #
+# from a random draw of potential dispersers ranging from 1 to 20, and #
+# the probability of colonization for that year for each site: #
+M <- rbinom( Io, size = round(runif( Io, min = 1, max = 20 )), prob = Gamma )
+
+# Calculate abundance as the sum of survivors, S, and migrants, M:
+Ndf[ ,t+1 ] <- S + M 
+
+
+
 # We are now ready to perform our analysis. Since the number of predictors #
 # is reasonable for the sample size, and there were no issues with #
 # correlation, we focus on a single full, additive model:
