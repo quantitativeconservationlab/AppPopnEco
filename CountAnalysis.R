@@ -3,36 +3,43 @@
 ##     This script was created by Dr. Jen Cruz as part of            ##
 ##            the Applied Population Ecology Class                  ###
 ##                                                                   ##  
-## Here we import our cleaned data for season 1 of our occurrence    ##
+## Here we import our cleaned data for 2009 for our point count       ##
 #  observations for Piute ground squirrels at the NCA and run a      ##
-## closed population occupancy analysis. See Mackenzie et al. 2002   ##
-## for details of the model. The occupancy model is hierarchical with #
-# two components: (1) an ecological submodel linking occupancy to    ##
-## environmental predictors at the site. (2) an observation submodel ##
+## closed population N-mixture analysis. The occupancy model is      #
+# hierarchical with : (1) an ecological submodel linking abundance to #
+## environmental predictors at each site; (2) an observation submodel ##
 ## linking our detection probability to relevant predictors.         ##
 ##                                                                   ##
+# Female Piute ground squirrels give birth to an average of 5-10 young#
+# Reproduction and survival are likely influenced by colder temperatures #
+# in Feb, when they come out of hibernation.                          #                
+# Survival is also likely affected by hot temperatures, with individuals#
+# unable to forage when temperatures are too hot. So we expect a      #
+# negative relationship between survival and max T in Apr-May         #
+# Survival is expected to be higher in sites with more sagebrush      #
+#                                                                     #
+# Detection may be related to observer effects and to time of day as a #
+# quadratic, with higher detection expected in the middle of the day, #
+# when squirrels are expected to be most active.                      #
 #######################################################################
+
 ##### Set up your workspace and load relevant packages -----------
 # Clean your workspace to reset your R environment. #
 rm( list = ls() )
 # Check that you are in the right project folder
 getwd()
 
-# Install new packages from "CRAN" repository. # 
-install.packages( "unmarked" ) #package for estimating occupancy, N-mixtures, 
-#and some multinomial approaches for capture data
-install.packages( "MuMIn") # package for model selection and evaluation
-# load packages:
 library( tidyverse )#includes dplyr, tidyr and ggplot2
 library( unmarked ) #
 library( MuMIn )
+library( AICcmodavg)
 ## end of package load ###############
 ###################################################################
 #### Load or create data -----------------------------------------
 # set directory where your data are:
 datadir <- paste( getwd(), "/Data/", sep = "" )
 # load our cleaned data
-closeddf <- read.csv( file = paste( datadir, "closedf.csv", sep = ""),
+closeddf <- read.csv( file = paste( datadir, "closed_counts.csv", sep = ""),
                       header = TRUE )
 #view
 head( closeddf ); dim( closeddf ) 
@@ -42,32 +49,33 @@ head( closeddf ); dim( closeddf )
 # What predictors do we think drive colonization, extinction and # 
 # detection of Piute ground squirrels at the NCA? #
 # Let's define our unmarked dataframe:
-# Start by defining which columns represent the response (observed occurrences)
-umf <- unmarkedFrameOccu( y = as.matrix( closeddf[ ,c("pres.j1", "pres.j2", "pres.j3")]),
+# Start by defining which columns represent the response (counts):
+umf <- unmarkedFramePCount( y = as.matrix( closeddf[ ,c("count.j1", "count.j2", "count.j3")]),
                           # Define predictors at the site level:
                           siteCovs = closeddf[ ,c("sagebrush", "cheatgrass")],
                           # Define predictors at the survey level as a list:
-                          obsCovs = list( obsv = closeddf[ ,c("observer.j1", "observer.j2", "observer.j3")] ) ) 
+                          obsCovs = list( obsv = closeddf[ ,c("observer.j1", "observer.j2", "observer.j3")],
+                                          time = closeddf[ ,c('time.j1', 'time.j2', 'time.j3') ] ) ) 
+
+# View summary of unmarked dataframe:
+summary( umf )
 #now scale ecological predictors:
 sc <- apply( siteCovs(umf), MARGIN = 2, FUN = scale )
 # We replace the predictors in our unmarked dataframe with the scaled values:
 siteCovs( umf ) <- sc
-# Why do we scale predictors?
-# Answer:
-#
-# View summary of unmarked dataframe:
+#now for observation-level predictors:
+osc <- as.vector(scale( obsCovs(umf)[2] ))
+#replace with scaled values:
+obsCovs(umf)[2] <- osc
+#recheck
 summary( umf )
-# What does it tell us?
-
 ### end data prep -----------
 ### Analyze data ------------------------------------------
-# We are now ready to perform our analysis. Since the number of predictors #
-# is reasonable for the sample size, and there were no issues with #
-# correlation, we focus on a single full, additive model:
-fm.closed <- occu( ~ 1 + obsv + sagebrush
+# We are now ready to perform our analysis:
+fm.closed <- pcount( ~ 1 + obsv + time
                    ~ 1 + sagebrush + cheatgrass, data = umf )
-# Note that we start with the observation submodel, linking it to the intercept # 
-# and observer effect, obsv. We then define the ecological submodel as related #
+# Note that we start with the observation submodel #
+#We then define the ecological submodel as related #
 # to sagebrush and cheatgrass. We end by defining the data to be used.
 
 # View model results:
@@ -102,7 +110,7 @@ confint( fm.closed, type = 'det' )
 # from the model. These estimates are then used to compute the predicted and #
 # observed frequencies separately within each season. The chi-squares are then #
 # summed to be used as the test statistic for the dynamic occupancy model.
-gof.boot <- AICcmodavg::mb.gof.test( fm.dyn, nsim = 1000, print.table = TRUE )
+gof.boot <- AICcmodavg::mb.gof.test( fm.closed, nsim = 1000, print.table = TRUE )
 #view
 gof.boot
 # What does the output tell us about our model fit?
