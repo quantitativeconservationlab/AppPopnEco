@@ -3,11 +3,12 @@
 ####   This script was created by Dr. Jen Cruz as part of      ########
 ####          the Applied Population Ecology Class              #######
 ####                                                           ########
-# Our study species is the Piute ground squirrel, Spermophilus    # 
+# Our study species is the Piute ground squirrel, Spermophilus        # 
 # mollis at the Morley Nelson Birds of Prey Nature Conservation Area. #
-# Their abundance is influenced by drought, low temperatures when #
-# they emerge from hibernation in Feb and high temperatures in April-May #
-# 50 sites were randomly selected for repeated count surveys over #
+# Their abundance is influenced by drought, low temperatures when     #
+# they emerge from hibernation in Feb and high temperatures in        #
+# in April-May                                                        #
+# 50 sites were randomly selected for repeated count surveys over     #
 # three days. Surveys were repeated over multiple years () #
 # Surveys involved point counts for 2min where all individuals detected #
 # over a x radius were recorded. 
