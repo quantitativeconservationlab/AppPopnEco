@@ -73,7 +73,11 @@ summary( umf )
 ### Analyze data ------------------------------------------
 # We are now ready to perform our analysis:
 fm.closed <- pcount( ~ 1 + obsv + time
-                   ~ 1 + sagebrush + cheatgrass, data = umf )
+                   ~ 1 + sagebrush + cheatgrass, 
+                   #we need to define the maximum possible abundance
+                   #during the primary occasion
+                    K = 1000,
+                   data = umf )
 # Note that we start with the observation submodel #
 #We then define the ecological submodel as related #
 # to sagebrush and cheatgrass. We end by defining the data to be used.
@@ -102,46 +106,32 @@ confint( fm.closed, type = 'det' )
 # decide if we are happy to proceed or need to modify our analysis #
 # somehow.
 
-# We start with goodness of fit (GoF) on detection frequencies, which relies on a #
-# Pearson chi-square to assess fit as suggested by Mackenzie and Bailey (2004) #
-# J. Agr., Bio. & Env. Stats. 9: 300-318. 
-# This test is extended in AICmodavg package to dynamic occupancy models of #
-# MacKenzie et al. (2003) by using the occupancy estimates for each season obtained #
-# from the model. These estimates are then used to compute the predicted and #
-# observed frequencies separately within each season. The chi-squares are then #
-# summed to be used as the test statistic for the dynamic occupancy model.
-gof.boot <- AICcmodavg::mb.gof.test( fm.closed, nsim = 1000, print.table = TRUE )
+# We start with goodness of fit (GoF) outlined by Duarte et al. 2018 #
+# Ecological modelling 374:51-59 and available via AICmodavg package #
+# The Nmix.gof.test relies on a Pearson chi-square to assess the fit of #
+# N-mixture models. The approach uses bootstrapping to estimate the p values #
+# The test also estimates a c-hat measure of overdispersion, as the  #
+# observed test statistic divided by the mean of the simulated test statistics #
+
+# Let's compute observed chi-square, assess significance, and estimate c-hat
+gof.boot <- Nmix.gof.test( fm.closed, nsim = 1000, print.table = TRUE )
 #view
 gof.boot
 # What does the output tell us about our model fit?
 # Answer:
 #
-# If we want to look at each season to see if any of them had particularly bad fit:
-gof.boot$chisq.table$tables
-# Is there a season that was particularly bad? Which?
-# Answer: 
-#
-# Remember that higher chi-squared values represent worse fit
-
+plot( residuals(fm.closed))
 # We also evaluate how well our full model did against the null model # 
 # by estimating pseudo-R^2, based on Nagelkerke, N.J.D. (2004) A Note #
 # on a General Definition of the Coefficient of Determination. Biometrika 78,#
 # pp. 691-692.#
 # We run the null model
-fm.null <- colext( #define detection submodel:
-  pformula = ~ 1,
-  #define occupancy submodel for year 1:
-  psiformula = ~ 1,
-  #define extinction submodel for years 2:T:
-  epsilonformula = ~ 1,
-  #define colonization submodel for years 2:T:
-  gammaformula = ~ 1,
-  #data to use:
-  data = umf )
+fm.null <- pcount( ~ 1 ~ 1,
+            K = 1000, data = umf )
 #view
 fm.null
 # Now build the list with the two models of interest:
-rms <- fitList( 'full' = fm.dyn,
+rms <- fitList( 'full' = fm.closed,
                 'null' = fm.null )
 # Then use model selection function from unmarked, defining which is the null:
 unmarked::modSel(rms, nullmod = "null" )
@@ -219,7 +209,7 @@ sagep
 ################## Save your data and workspace ###################
 
 # Save workspace:
-save.image( "RobOccResults.RData" )
+save.image( "CountResults.RData" )
 
 #save the plot objects you need for your presentation
 #start by calling the file where you will save it
