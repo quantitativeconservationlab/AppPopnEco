@@ -29,10 +29,15 @@ rm( list = ls() )
 # Check that you are in the right project folder
 getwd()
 
+#install relevant packages
+install.packages( 'Rtools' )
+install.packages( "nmixgof" ) #for evaluating N-mixture models
+
 library( tidyverse )#includes dplyr, tidyr and ggplot2
 library( unmarked ) #
 library( MuMIn )
 library( AICcmodavg)
+library( nmixgof )
 ## end of package load ###############
 ###################################################################
 #### Load or create data -----------------------------------------
@@ -120,7 +125,6 @@ gof.boot
 # What does the output tell us about our model fit?
 # Answer:
 #
-plot( residuals(fm.closed))
 # We also evaluate how well our full model did against the null model # 
 # by estimating pseudo-R^2, based on Nagelkerke, N.J.D. (2004) A Note #
 # on a General Definition of the Coefficient of Determination. Biometrika 78,#
@@ -136,22 +140,47 @@ rms <- fitList( 'full' = fm.closed,
 # Then use model selection function from unmarked, defining which is the null:
 unmarked::modSel(rms, nullmod = "null" )
 
-#########################################################################
-##### Summarizing model output ##############
-# Now we plot the results we are interested in.
-# We can see how mean occupancy changed through time by extracting values from
-# the projected.mean data table:
-fm.dyn@projected.mean
-# select occupied row and combine it with year
-data.frame( year = sort( unique( robdf$year) ),
-            occupied = as.vector( fm.dyn@projected.mean["occupied",] ) ) %>%
-  ggplot(., aes( x = year, y = occupied ) ) +
-  theme_bw(base_size = 15 ) + 
-  geom_line( size = 2 )
 
-# What is happening to Piute ground squirrels at the NCA?
+# Now we used the gof checks outlined in Knape et al. 2018 MEE 9:2102-2114
+# We start by estimating overdispersion metrics 
+chat( fm.closed, type = 'marginal' )
+chat( fm.closed, type = 'site-sum' )
+chat( fm.closed, type = 'observation' )
+
+# Plot rq residuals against untransformed numeric predictors. This may help
+# detect problems with the functional form assumed in a model
+residcov( fm.closed )
+# What do the plots tell you?
+# Answer:
+#
+# Plot residuals against fitted values. Site-sum randomized quantile residuals
+# are used for site covariates while marginal residuals are used for
+# observation covariates. 
+residfit( fm.closed, type = 'site-sum' )
+# Plot the observation model residuals
+residfit( fm.closed, type = 'observation' )
+# What did Knape et al. 2018 say these residuals were useful for?
+# Answer:
+#
+# Qq plots of randomized residuals against standard normal quantiles #
+# Under a good fit residuals should be close to the identity line. 
+residqq( fm.closed, type = 'site-sum' )
+residqq( fm.closed, type = 'observation' )
+
+# What do these plots indicate? 
 # Answer:
 # 
+# What is some of the advice recommended by Knape et al. 2018 if we want 
+# to use abundance estimates from these N-mixture models?
+# Answer:
+#
+# Now try fitting other functional forms (e.g. ZIP or Negative Binomial)
+# Do you get a better fit?
+# Answer:
+#
+#########################################################################
+##### Summarizing model output ##############
+
 # We now see the effects that our predictors are having on this trend. #
 # by plotting partial prediction plots for our ecological submodels #
 # Here I focus only on those with 95% CIs not overlapping zero:
@@ -159,40 +188,39 @@ data.frame( year = sort( unique( robdf$year) ),
 # how many values do we use:
 n <- 100
 # we use the observed values to define our range:
-sagebrush <- seq( min( robdf[,"sagebrush"]),max( robdf[,"sagebrush"]),
-                  length.out = n )
-cheatgrass <- seq( min( robdf[,"cheatgrass"]),max( robdf[,"cheatgrass"]),
+cheatgrass <- seq( min( closeddf[,"cheatgrass"]),max( closeddf[,"cheatgrass"]),
                    length.out = n )
+# what are the min max times:
+closeddf %>% select( time.j1, time.j2, time.j3 ) %>% 
+  summarise_all(list(min, max)) 
+Time <- round(seq( 0, 360, length.out = n ),0)
 #standardize them
-sage.std <- scale( sagebrush )
 cheat.std <- scale( cheatgrass )
+time.std <- scale( Time )
 #combine standardized predictor into a new dataframe to predict partial relationship
 # with sagebrush. We replace value of other predictor with its mean
-colData <- data.frame( sagebrush = sage.std, AprMay.maxT = 0 )
+abundData <- data.frame( sagebrush = 0, cheatgrass = cheat.std )
 
 #predict partial relationship between sagebrush and occupancy
-pred.col.sage <- predict( fm.dyn, type = "col", newdata = colData, 
+pred.cheat <- predict( fm.closed, type = "state", newdata = abundData, 
                           appendData = TRUE )
 #view
-head( pred.col.sage ); dim( pred.col.sage )
+head( pred.cheat ); dim( pred.cheat )
 
-#combine standardized predictor into a new dataframe to predict partial relationship
-# with cheatgrass. We replace value of other predictor with its mean
-extData <- data.frame( Feb.minT = 0, cheatgrass = cheat.std )
-#predict partial relationship between sagebrush and occupancy
-pred.ext.cheat <- predict( fm.dyn, type = "ext", newdata = extData, 
+# now for detection
+detData <- data.frame( obsv = list(0,0,0,0), time = time.std )
+#predict partial relationship for detection:
+pred.time <- predict( fm.closed, type = "det", newdata = detData, 
                            appendData = TRUE )
 
-# create plots for ecological submodels
-#Starting with sagebrush and colonization:
-# select the predicted values we want to plot and combine with unscaled predictor
-sagep <- cbind( pred.col.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %>%
+# create plots for ecological submodel:
+cheatp <- cbind( pred.cheat[,c("Predicted", "lower", "upper") ], cheatgrass ) %>%
   # define x and y values
-  ggplot(., aes( x = sagebrush, y = Predicted ) ) + 
+  ggplot(., aes( x = cheatgrass, y = Predicted ) ) + 
   #choose preset look
   theme_bw( base_size = 15 ) +
   # add labels
-  labs( x = "Sagebrush (%)", y = "Estimated colonization" ) +
+  labs( x = "Cheatgrass (%)", y = "Relative abundance" ) +
   # add band of confidence intervals
   geom_smooth( aes(ymin = lower, ymax = upper ), 
                stat = "identity",
@@ -200,9 +228,8 @@ sagep <- cbind( pred.col.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %
   # add mean line on top
   geom_line( size = 2 ) 
 #view
-sagep
+cheatp
 # How do you interpret this relationship?
-# Is there a potential threshold beyond which colonization becomes unlikely?
 # Answer:
 #
 ############################################################################
@@ -212,16 +239,8 @@ sagep
 save.image( "CountResults.RData" )
 
 #save the plot objects you need for your presentation
-#start by calling the file where you will save it
-tiff( 'Data/SageXCol.tiff',
-      height = 10, width = 12, units = 'cm', 
-      compression = "lzw", res = 400 )
-#call the plot
-sagep
-#end connection
-dev.off()
-#Now the cheatgrass x occupancy plot:
-tiff( 'Data/CheatXExt.tiff',
+#Cheatgrass x abundance plot:
+tiff( 'Data/CheatXAbund.tiff',
       height = 10, width = 12, units = 'cm', 
       compression = "lzw", res = 400 )
 #call the plot
