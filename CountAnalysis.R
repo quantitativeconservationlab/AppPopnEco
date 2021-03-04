@@ -126,7 +126,7 @@ unmarked::modSel(rms, nullmod = "null" )
 # What does this tell us?
 # Answer:
 #
-# What about a comparison of our fitted vs observed values
+# What about a comparison of our fitted vs observed values?
 plot(  closeddf[,'count.j1'], fitted( fm.closed)[,1] )
 points( closeddf[,'count.j2'], fitted( fm.closed)[,2] )
 points( closeddf[,'count.j3'], fitted( fm.closed)[,3] )
