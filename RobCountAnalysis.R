@@ -3,7 +3,7 @@
 ##     This script was created by Dr. Jen Cruz as part of            ##
 ##            the Applied Population Ecology Class                  ###
 ##                                                                   ##  
-## Here we import our cleaned data for the timeseries of point count ##
+## Here we import our cleaned data for the time-series of point count #
 #  observations for Piute ground squirrels at the NCA and run        ##
 ## robust population N-mixture analyses. The models are hierarchical  #
 #  with : (1) an ecological submodel linking abundance to             #
@@ -19,12 +19,8 @@
 #                                                                     #
 # Detection may be related to observer effects and to time of day as a #
 # quadratic, with higher detection expected in the middle of the day, #
-# when squirrels are expected to be most active.                      #
+# when squirrels are most active.                                     #
 #                                                                    ##
-# Now let's simulate population growth for the following years using a #
-# Gompertz model adapted to discrete time steps.                      #
-# See: Cruz et al. 2013 PLOS ONE 8(9):e73544 for example.             #
-#                                                                     #
 #######################################################################
 ##### Set up your workspace and load relevant packages -----------
 # Clean your workspace to reset your R environment. #
@@ -34,7 +30,7 @@ getwd()
 
 # load packages:
 library( tidyverse )#includes dplyr, tidyr and ggplot2
-library( unmarked ) #
+library( unmarked ) #analyze count and occupancy data
 library( AICcmodavg) #gof tests (Duarte et al. 2018)
 library( nmixgof ) #more gof tests (Knape et al. 2018)
 ## end of package load ###############
@@ -138,31 +134,91 @@ obsCovs(umf)[2] <- osc
 #recheck
 summary( umf )
 ### end data prep -----------
-
+########################################################################
 ### Analyze data ------------------------------------------
+# The pcountOpen() function allows a wide variety of model parametizations. #
+# With more choices, comes potential confusion as to how to implement different #
+# options adequately. Models are also very computationally-intensive and can #
+# take several hours (or days) to run, depending on your computer capabilities. # 
+# If you can provide initial values, do so. Minimize your K in the first run and#
+#  start without estimating standard errors. #
+# This will allow you to check that you have specified the model correctly. #
+# Then build up from there. 
+
+# Here we start with description of some of the options available. Please #
+# check the unmarked manual for further details. #
+
+# Initial abundance is always: N[i,t] ~ Poisson(lambda) #
+# Survivors can be estimated from a Binomial process as density-dependent:
+# S[i,t+1] ~ Binomial( N[i,t], omega )
+# if dynamics = "autoreg":
+# Recruits can be related to previous abundance, or density-dependent as:
+# R[i,t+1] ~ Poisson( N[i,t] * gamma ), where gamma represents per-capita recruitment
+# OR:
+# if dynamics = 'constant':
+# R[i,t+1] ~ Poisson( gamma ), where gamma becomes constant recruitment rate
+# Note that under this second option, extinct sites (N[i,t]=0) cannot experience 
+# recruitment (i.e, cannot be rescued).
+#
+# If dynamics = "notrend": lambda * (1-omega) and there is no temporal trend
+# If dynamics = "trend": then population growth is models as exponential growth:
+# N[i,t] = N[i,t-1] * gamma, where gamma is finite rate of increase (normally #
+# referred to as lambda ).
+# Dynamics can also be modeled as density-dependent in two other ways:
+# where gamma is maximum instantaneous population growth rate (r) and 
+# omega is equilibrium abundance (normally termed K).
+# (1) Ricker where N[i,t] = N[i,t-1] * exp( gammma * (1 - N[i,t-1] / omega ) ), OR
+# (2) Gompertz where N[i,t] = N[i,t-1] * exp( gamma * ( 1 - log( N[i,t-1] + 1 ) /
+#     log( omega + 1) ) )
+
+# Let's start with a simple model
+fm.notrend <- pcountOpen( #lambda formula for initial abundance:
+  lambdaformula = ~1, 
+  #gamma is modeled as lambda * ( 1 - omega)
+  gammaformula = ~1, 
+  #omega 
+  omegaformula = ~1, 
+  #detection formula:
+  pformula = ~1, 
+  #no trend
+  dynamics = 'notrend', 
+  #Define the maximum possible abundance
+  K = 400,
+  # don't calculate standard errors, which makes it run faster:
+  se = FALSE, #useful for the first run
+  mixture = "P", #NB or ZIP also possible 
+  immigration = FALSE,
+  data = umf, 
+  control = list( trace = TRUE, REPORT = 1) )
+
+# View model results:
+fm.notrend
+
 # Now let's simulate population growth for the following years using a #
 # Gompertz model adapted to discrete time steps. #
 # See: Cruz et al. 2013 PLOS ONE 8(9):e73544 for example.
 fm.gompertz <- pcountOpen( #lambda formula for initial abundance:
   lambdaformula = ~1, 
-                #gamma formula is either recruitment rate or population growth rate
+  #gamma is instantaneous population growth rate (r)
   gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT, 
-                 #omega formula is apparent survival using a logit, or equilibrium abundance using a log
-  omegaformula =  ~1, 
-                 #detection formula:
+  #omega is carrying capacity (K)
+  omegaformula = ~1, 
+  #detection formula:
   pformula = ~1 + observer + time + I(time)^2,  
-                 #Define the maximum possible abundance
-                 K = 500,
-                 mixture = "P", #NB or ZIP also possible 
-                 #density-dependent population growth:
-                 dynamics = 'gompertz', 
-                 immigration = TRUE,
-                  #average number of immigrants that rescue a population that goes extinct:
-                 iotaformula = ~1, 
-                 data = umf )
+  #density-dependent population growth: N[i,t] = N[i,t-1] * 
+  #exp( gamma * (1 - log(N[i,t-1] + 1) ) / log(omega + 1) )
+  dynamics = 'gompertz', 
+  #Define the maximum possible abundance
+  K = 500,
+  # doesn't calculate standard errors, which makes it run faster:
+  se = FALSE, #useful for the first run
+  mixture = "P", #NB or ZIP also possible 
+  immigration = FALSE,
+  data = umf )
 
 # View model results:
 fm.gompertz
+
 
 #backtransform parameter estimates
 lam <- exp(coef(fm.gompertz, type = "lambda"))
