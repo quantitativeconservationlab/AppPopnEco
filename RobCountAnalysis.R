@@ -3,18 +3,28 @@
 ##     This script was created by Dr. Jen Cruz as part of            ##
 ##            the Applied Population Ecology Class                  ###
 ##                                                                   ##  
-## Here we import our cleaned data for season 1 of our occurrence    ##
-#  observations for Piute ground squirrels at the NCA and run a      ##
-## closed population occupancy analysis. See Mackenzie et al. 2002   ##
-## for details of the model. The occupancy model is hierarchical with #
-# two components: (1) an ecological submodel linking occupancy to    ##
-## environmental predictors at the site. (2) an observation submodel ##
-## linking our detection probability to relevant predictors.         ##
+## Here we import our cleaned data for the timeseries of point count ##
+#  observations for Piute ground squirrels at the NCA and run        ##
+## robust population N-mixture analyses. The models are hierarchical  #
+#  with : (1) an ecological submodel linking abundance to             #
+## environmental predictors; (2) an observation submodel linking     ##
+##  detection probability to relevant predictors.                    ##
 ##                                                                   ##
+# Female Piute ground squirrels give birth to an average of 5-10 young#
+# Reproduction and survival are likely influenced by colder temperature #
+# in Feb, when they come out of hibernation.                          #                
+# Survival is likely affected by hot temperatures, with individuals   #
+# unable to forage when temperatures are too hot.                     #
+# Survival is expected to be higher in sites with more sagebrush.     #
+#                                                                     #
+# Detection may be related to observer effects and to time of day as a #
+# quadratic, with higher detection expected in the middle of the day, #
+# when squirrels are expected to be most active.                      #
+#                                                                    ##
 # Now let's simulate population growth for the following years using a #
-# Gompertz model adapted to discrete time steps. #
-# See: Cruz et al. 2013 PLOS ONE 8(9):e73544 for example.
-
+# Gompertz model adapted to discrete time steps.                      #
+# See: Cruz et al. 2013 PLOS ONE 8(9):e73544 for example.             #
+#                                                                     #
 #######################################################################
 ##### Set up your workspace and load relevant packages -----------
 # Clean your workspace to reset your R environment. #
@@ -22,110 +32,152 @@ rm( list = ls() )
 # Check that you are in the right project folder
 getwd()
 
-# Install new packages from "CRAN" repository. # 
-install.packages( "unmarked" ) #package for estimating occupancy, N-mixtures, 
-#and some multinomial approaches for capture data
-install.packages( "MuMIn") # package for model selection and evaluation
 # load packages:
 library( tidyverse )#includes dplyr, tidyr and ggplot2
 library( unmarked ) #
-library( MuMIn )
+library( AICcmodavg) #gof tests (Duarte et al. 2018)
+library( nmixgof ) #more gof tests (Knape et al. 2018)
 ## end of package load ###############
 ###################################################################
 #### Load or create data -----------------------------------------
 # set directory where your data are:
 datadir <- paste( getwd(), "/Data/", sep = "" )
 # load our cleaned data
-closeddf <- read.csv( file = paste( datadir, "closedf.csv", sep = ""),
+opendf <- read.csv( file = paste( datadir, "open_counts.csv", sep = ""),
                       header = TRUE )
 #view
-head( closeddf ); dim( closeddf ) 
+head( opendf ); dim( opendf ) 
 #### End of data load -------------
 ####################################################################
 ##### Ready data for analysis --------------
-# What predictors do we think drive colonization, extinction and # 
-# detection of Piute ground squirrels at the NCA? #
-# Let's define our unmarked dataframe:
-# Start by defining which columns represent the response (observed occurrences)
-umf <- unmarkedFrameOccu( y = as.matrix( closeddf[ ,c("pres.j1", "pres.j2", "pres.j3")]),
-                          # Define predictors at the site level:
-                          siteCovs = closeddf[ ,c("sagebrush", "cheatgrass")],
-                          # Define predictors at the survey level as a list:
-                          obsCovs = list( obsv = closeddf[ ,c("observer.j1", "observer.j2", "observer.j3")] ) ) 
-#now scale ecological predictors:
-sc <- apply( siteCovs(umf), MARGIN = 2, FUN = scale )
-# We replace the predictors in our unmarked dataframe with the scaled values:
-siteCovs( umf ) <- sc
-# Why do we scale predictors?
-# Answer:
-#
-# View summary of unmarked dataframe:
-summary( umf )
-# What does it tell us?
+#create your response dataframe:
+yy <- opendf %>%  
+  select( o.sites, year, count.j1, count.j2, count.j3 ) %>% 
+  pivot_wider( names_from = year, #which criteria is getting turned to wide
+               values_from = c("count.j1", "count.j2", "count.j3"), #what columns do we include
+               #this rearranges the naming of the columns to use year first 
+               names_glue = "{year}_{.value}" )
+#check did we get the right number of dimensions?
+head( yy ); dim( yy )
+#now we sort columns by year instead of survey
+yy <- yy %>% dplyr::select( str_sort( colnames(yy), numeric = TRUE ) ) %>%
+  # we remove site id
+  select( -o.sites )
 
+#now create siteXyear dataframes:
+#for sagebrush:
+sagebrush <- opendf %>% select( o.sites, year, sagebrush ) %>% 
+          spread( key = year, value = sagebrush ) %>% 
+  select( -o.sites )
+#check
+head(sagebrush); dim(sagebrush)
+#for Feb temperature:
+Feb.minT <- opendf %>% select( o.sites, year, Feb.minT ) %>% 
+  spread( key = year, value = Feb.minT ) %>% 
+  select( -o.sites )
+#check
+head(Feb.minT); dim(Feb.minT)
+#for Apr-May temperature:
+AprMay.maxT <- opendf %>% select( o.sites, year, AprMay.maxT ) %>% 
+  spread( key = year, value = AprMay.maxT ) %>% 
+  select( -o.sites )
+#check
+head(AprMay.maxT); dim(AprMay.maxT)
+
+#create observer level dataframes
+#starting with observer effect:
+observer <- opendf %>%  
+  select( o.sites, year, observer.j1, observer.j2, observer.j3 ) %>% 
+  pivot_wider( names_from = year, #which criteria is getting turned to wide
+               values_from = c("observer.j1", "observer.j2", "observer.j3"), #what columns do we include
+               #this rearranges the naming of the columns to use year first 
+               names_glue = "{year}_{.value}" )
+#check did we get the right number of dimensions?
+head( observer ); dim( observer )
+#now we sort columns by year instead of survey
+observer <- observer %>% dplyr::select( str_sort( colnames(observer), numeric = TRUE ) ) %>%
+  # we remove site id
+  select( -o.sites )
+#now for time of day:
+Time <- opendf %>%  
+  select( o.sites, year, time.j1, time.j2, time.j3 ) %>% 
+  pivot_wider( names_from = year, #which criteria is getting turned to wide
+               values_from = c("time.j1", "time.j2", "time.j3"), #what columns do we include
+               #this rearranges the naming of the columns to use year first 
+               names_glue = "{year}_{.value}" )
+#check did we get the right number of dimensions?
+head( Time ); dim( Time )
+#now we sort columns by year instead of survey
+Time <- Time %>% dplyr::select( str_sort( colnames(Time), numeric = TRUE ) ) %>%
+  # we remove site id
+  select( -o.sites )
+
+#lastly calculate number of primary periods
+T <- length( unique( opendf$year ) )
+#now combine into unmarked dataframe:
+umf <- unmarkedFramePCO( y = as.matrix(yy),
+                        #combine yearXsite dataframes into a list
+                        yearlySiteCovs = list( sagebrush = sagebrush,
+                                               Feb.minT =Feb.minT,
+                                               AprMay.maxT =  AprMay.maxT),
+                        #combine observer-level dataframes into list
+                        obsCovs = list( observer = observer, 
+                                        time = Time ),
+                        #provide number of primary periods
+                        numPrimary = T )
+# Check
+summary( umf )
+#now scale ecological predictors:
+sc <- apply( yearlySiteCovs(umf), MARGIN = 2, FUN = scale )
+# We replace the predictors in our unmarked dataframe with the scaled values:
+yearlySiteCovs( umf ) <- sc
+#now for observation-level predictors:
+osc <- as.vector(scale( obsCovs(umf)[2] ))
+#replace with scaled values:
+obsCovs(umf)[2] <- osc
+#recheck
+summary( umf )
 ### end data prep -----------
+
 ### Analyze data ------------------------------------------
 # Now let's simulate population growth for the following years using a #
 # Gompertz model adapted to discrete time steps. #
 # See: Cruz et al. 2013 PLOS ONE 8(9):e73544 for example.
-
-# Female Piute ground squirrels give birth to an average of 5-10 young #
-# Reproduction is affected by food availability early in the #
-# season when they come out of hibernation, with colder Feb temperatures #
-# signifying less food, lower reproduction and also lower survival of #
-# adults. 
-# Survival is also affected by really hot temperatures, with individuals #
-# unable to forage when temperatures are too hot. So we expect a #
-# negative relationship between survival and max T in Apr-May #
-#let's define these relationships
-# Lastly, survival is expected to be higher in sites with more sagebrush #
-
-# Abundance, N[t+1] is determined by a Gompertz process driven by site #
-# occupancy, O[t+1], abundance in the previous season, N[t], population #
-# growth rate, Psi[t] and density-dependence, with Poisson error. #
-# In addition, potential migrants may be added to a site depending on 
-# a binomial process driven by a random draw of dispersers and the probability #
-# that the site was colonized that year, Gamma[t]. 
-
-#Estimate the population growth rate for that site, that year, Psi, by adding
-# a density-dependent term when the site was occupied in the previous season:
-Psi <- exp( log.psi.df[ ,yrnames[t]] + ( -0.05 * log( Ndf[,t] + 1 ) ) )
-
-# Determine the number of survivors, based on current site occupancy, Odf[t+1], #
-# previous abundance, N[t], and population growth rate, Psi[t]. The later takes #
-# into account covariates and reflects births and deaths in the population:
-S <- rpois( n = Io, lambda = Ndf[,t] * Psi * Odf[,t+1] )
-
-# Define potential migrants, M, as the product of a binomial process drawing #
-# from a random draw of potential dispersers ranging from 1 to 20, and #
-# the probability of colonization for that year for each site: #
-M <- rbinom( Io, size = round(runif( Io, min = 1, max = 20 )), prob = Gamma )
-
-# Calculate abundance as the sum of survivors, S, and migrants, M:
-Ndf[ ,t+1 ] <- S + M 
-
-
-
-# We are now ready to perform our analysis. Since the number of predictors #
-# is reasonable for the sample size, and there were no issues with #
-# correlation, we focus on a single full, additive model:
-fm.closed <- occu( ~ 1 + obsv + sagebrush
-                   ~ 1 + sagebrush + cheatgrass, data = umf )
-# Note that we start with the observation submodel, linking it to the intercept # 
-# and observer effect, obsv. We then define the ecological submodel as related #
-# to sagebrush and cheatgrass. We end by defining the data to be used.
+fm.gompertz <- pcountOpen( #lambda formula for initial abundance:
+  lambdaformula = ~1, 
+                #gamma formula is either recruitment rate or population growth rate
+  gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT, 
+                 #omega formula is apparent survival using a logit, or equilibrium abundance using a log
+  omegaformula =  ~1, 
+                 #detection formula:
+  pformula = ~1 + observer + time + I(time)^2,  
+                 #Define the maximum possible abundance
+                 K = 500,
+                 mixture = "P", #NB or ZIP also possible 
+                 #density-dependent population growth:
+                 dynamics = 'gompertz', 
+                 immigration = TRUE,
+                  #average number of immigrants that rescue a population that goes extinct:
+                 iotaformula = ~1, 
+                 data = umf )
 
 # View model results:
-fm.closed
+fm.gompertz
 
+#backtransform parameter estimates
+lam <- exp(coef(fm.gompertz, type = "lambda"))
+om <- plogis(coef(fm.gompertz, type = "omega"))
+gam <- exp( coef( fm.gompertz, type = "gamma"))
+p <- plogis( coef( fm.gompertz, type = "det" ) )
+#view
+lam; om; gam; p
 # We can also estimate confidence intervals for coefficients in #
 # ecological submodel:
-confint( fm.closed, type = "state" )
-# Why do we call them coefficients and not predictors?
-# Answer:
-#
+confint( fm.gompertz, type = "lambda" )
+confint( fm.gompertz, type = "omega" )
+confint( fm.gompertz, type = "gamma" )
 # coefficients for detection submodel:
-confint( fm.closed, type = 'det' )
+confint( fm.gompertz, type = 'det' )
 #
 # Based on the overlap of the 95% CIs for your predictor coefficients, #
 # can you suggest which may be important to each of your responses? #
@@ -134,65 +186,60 @@ confint( fm.closed, type = 'det' )
 #############end full model ###########
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
+# We start with goodness of fit (GoF) outlined by Duarte et al. 2018 #
+# Ecological modelling 374:51-59 and available via AICmodavg package #
+# The Nmix.gof.test relies on a Pearson chi-square to assess the fit of #
+# N-mixture models. The approach uses bootstrapping to estimate the p values #
+# The test also estimates a c-hat measure of overdispersion, as the  #
+# observed test statistic divided by the mean of the simulated test statistics #
 
-# Now that we looked at the initial output we can evaluate our model to #
-# decide if we are happy to proceed or need to modify our analysis #
-# somehow.
-
-# We start with goodness of fit (GoF) on detection frequencies, which relies on a #
-# Pearson chi-square to assess fit as suggested by Mackenzie and Bailey (2004) #
-# J. Agr., Bio. & Env. Stats. 9: 300-318. 
-# This test is extended in AICmodavg package to dynamic occupancy models of #
-# MacKenzie et al. (2003) by using the occupancy estimates for each season obtained #
-# from the model. These estimates are then used to compute the predicted and #
-# observed frequencies separately within each season. The chi-squares are then #
-# summed to be used as the test statistic for the dynamic occupancy model.
-gof.boot <- AICcmodavg::mb.gof.test( fm.dyn, nsim = 1000, print.table = TRUE )
+# Let's compute observed chi-square, assess significance, and estimate c-hat
+gof.boot <- Nmix.gof.test( fm.gompertz, nsim = 500, print.table = TRUE )
 #view
 gof.boot
-# What does the output tell us about our model fit?
-# Answer:
-#
-# If we want to look at each season to see if any of them had particularly bad fit:
-gof.boot$chisq.table$tables
-# Is there a season that was particularly bad? Which?
-# Answer: 
-#
 # Remember that higher chi-squared values represent worse fit
 
-# We also evaluate how well our full model did against the null model # 
-# by estimating pseudo-R^2, based on Nagelkerke, N.J.D. (2004) A Note #
-# on a General Definition of the Coefficient of Determination. Biometrika 78,#
-# pp. 691-692.#
-# We run the null model
-fm.null <- colext( #define detection submodel:
-  pformula = ~ 1,
-  #define occupancy submodel for year 1:
-  psiformula = ~ 1,
-  #define extinction submodel for years 2:T:
-  epsilonformula = ~ 1,
-  #define colonization submodel for years 2:T:
-  gammaformula = ~ 1,
-  #data to use:
-  data = umf )
-#view
-fm.null
-# Now build the list with the two models of interest:
-rms <- fitList( 'full' = fm.dyn,
-                'null' = fm.null )
-# Then use model selection function from unmarked, defining which is the null:
-unmarked::modSel(rms, nullmod = "null" )
+# What about a comparison of our fitted vs observed values?
+plot(  yy[,1], fitted( opendf )[,1] )
+for( j in 2:dim(y)[2]){
+  points( yy[,j], fitted( opendf )[,j] )
+}
+# Now use gof checks outlined in Knape et al. 2018 MEE 9:2102-2114
+# We start by estimating overdispersion metrics 
+chat( fm.gompertz, type = 'marginal' )
+chat( fm.gompertz, type = 'site-sum' )
+chat( fm.gompertz, type = 'observation' )
+
+# Plot rq residuals against untransformed numeric predictors. This may help
+# detect problems with the functional form assumed in a model
+residcov( fm.gompertz )
+# What do the plots tell you?
+# Answer:
+#
+# Plot residuals against fitted values. Site-sum randomized quantile residuals
+# are used for site covariates while marginal residuals are used for
+# observation covariates. 
+residfit( fm.gompertz, type = 'site-sum' )
+# Plot the observation model residuals
+residfit( fm.gompertz, type = 'observation' )
+# What did Knape et al. 2018 say these residuals were useful for?
+# Answer:
+#
+# Niw plot Qq plots of randomized residuals against standard normal quantiles. #
+# Under a good fit, residuals should be close to the identity line. 
+residqq( fm.gompertz, type = 'site-sum' )
+residqq( fm.gompertz, type = 'observation' )
 
 #########################################################################
 ##### Summarizing model output ##############
 # Now we plot the results we are interested in.
 # We can see how mean occupancy changed through time by extracting values from
 # the projected.mean data table:
-fm.dyn@projected.mean
+fm.gompertz@projected.mean
 # select occupied row and combine it with year
-data.frame( year = sort( unique( robdf$year) ),
-            occupied = as.vector( fm.dyn@projected.mean["occupied",] ) ) %>%
-  ggplot(., aes( x = year, y = occupied ) ) +
+data.frame( year = sort( unique( opendf$year) ),
+            N = as.vector( fm.gompertz@projected.mean["abundance",] ) ) %>%
+  ggplot(., aes( x = year, y = N ) ) +
   theme_bw(base_size = 15 ) + 
   geom_line( size = 2 )
 
@@ -206,40 +253,48 @@ data.frame( year = sort( unique( robdf$year) ),
 # how many values do we use:
 n <- 100
 # we use the observed values to define our range:
-sagebrush <- seq( min( robdf[,"sagebrush"]),max( robdf[,"sagebrush"]),
+sage <- seq( min( opendf[,"sagebrush"]),max( opendf[,"sagebrush"]),
                   length.out = n )
-cheatgrass <- seq( min( robdf[,"cheatgrass"]),max( robdf[,"cheatgrass"]),
-                   length.out = n )
 #standardize them
-sage.std <- scale( sagebrush )
-cheat.std <- scale( cheatgrass )
+sage.std <- scale( sage )
 #combine standardized predictor into a new dataframe to predict partial relationship
-# with sagebrush. We replace value of other predictor with its mean
-colData <- data.frame( sagebrush = sage.std, AprMay.maxT = 0 )
-
-#predict partial relationship between sagebrush and occupancy
-pred.col.sage <- predict( fm.dyn, type = "col", newdata = colData, 
-                          appendData = TRUE )
+sageData <- data.frame( sagebrush = sage.std, AprMay.maxT = 0, Feb.minT = 0 )
+#predict partial relationship
+pred.sage <- predict( fm.gompertz, type = "gamma", newdata = sageData, 
+                      appendData = TRUE )
 #view
-head( pred.col.sage ); dim( pred.col.sage )
+head( pred.sage ); dim( pred.sage )
 
+#Feb.minT
+minT <- seq( min( opendf[,"Feb.minT"]),max( opendf[,"Feb.minT"]),
+             length.out = n )
+#standardize them
+minT.std <- scale( minT )
 #combine standardized predictor into a new dataframe to predict partial relationship
-# with cheatgrass. We replace value of other predictor with its mean
-extData <- data.frame( Feb.minT = 0, cheatgrass = cheat.std )
-#predict partial relationship between sagebrush and occupancy
-pred.ext.cheat <- predict( fm.dyn, type = "ext", newdata = extData, 
+minData <- data.frame( sagebrush = 0, Feb.minT = minT.std, AprMay.maxT = 0)
+#predict partial relationship
+pred.minT <- predict( fm.gompertz, type = "gamma", newdata = minData, 
                            appendData = TRUE )
 
+#AprMay.maxT
+maxT <- seq( min( opendf[,"AprMay.maxT"]),max( opendf[,"AprMay.maxT"]),
+             length.out = n )
+#standardize them
+maxT.std <- scale( maxT )
+#combine standardized predictor into a new dataframe to predict partial relationship
+maxData <- data.frame( sagebrush = 0, Feb.minT = 0, AprMay.maxT = maxT.std )
+#predict partial relationship
+pred.maxT <- predict( fm.gompertz, type = "gamma", newdata = maxData, 
+                      appendData = TRUE )
+
 # create plots for ecological submodels
-#Starting with sagebrush and colonization:
-# select the predicted values we want to plot and combine with unscaled predictor
-sagep <- cbind( pred.col.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %>%
+sagep <- cbind( pred.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %>%
   # define x and y values
   ggplot(., aes( x = sagebrush, y = Predicted ) ) + 
   #choose preset look
   theme_bw( base_size = 15 ) +
   # add labels
-  labs( x = "Sagebrush (%)", y = "Estimated colonization" ) +
+  labs( x = "Sagebrush (%)", y = "Instantaneous growth rate" ) +
   # add band of confidence intervals
   geom_smooth( aes(ymin = lower, ymax = upper ), 
                stat = "identity",
@@ -252,27 +307,52 @@ sagep
 # Is there a potential threshold beyond which colonization becomes unlikely?
 # Answer:
 #
+minTp <- cbind( pred.minT[,c("Predicted", "lower", "upper") ], minT ) %>%
+  # define x and y values
+  ggplot(., aes( x = minT, y = Predicted ) ) + 
+  #choose preset look
+  theme_bw( base_size = 15 ) +
+  # add labels
+  labs( x = "Minimum temperature (Feb)", y = "Instantaneous growth rate" ) +
+  # add band of confidence intervals
+  geom_smooth( aes(ymin = lower, ymax = upper ), 
+               stat = "identity",
+               size = 1.5, alpha = 0.5, color = "grey" ) +
+  # add mean line on top
+  geom_line( size = 2 ) 
+#view
+minTp
+maxTp <- cbind( pred.maxT[,c("Predicted", "lower", "upper") ], maxT ) %>%
+  # define x and y values
+  ggplot(., aes( x = maxT, y = Predicted ) ) + 
+  #choose preset look
+  theme_bw( base_size = 15 ) +
+  # add labels
+  labs( x = "Maximum temperature (Apr-May)", y = "Instantaneous growth rate" ) +
+  # add band of confidence intervals
+  geom_smooth( aes(ymin = lower, ymax = upper ), 
+               stat = "identity",
+               size = 1.5, alpha = 0.5, color = "grey" ) +
+  # add mean line on top
+  geom_line( size = 2 ) 
+#view
+maxTp
+# Add plots for detection
+# Answer:
+#
 ############################################################################
 ################## Save your data and workspace ###################
 
 # Save workspace:
-save.image( "RobOccResults.RData" )
+save.image( "RobCountResults.RData" )
 
 #save the plot objects you need for your presentation
 #start by calling the file where you will save it
-tiff( 'Data/SageXCol.tiff',
+tiff( 'Data/SageXGam.tiff',
       height = 10, width = 12, units = 'cm', 
       compression = "lzw", res = 400 )
 #call the plot
 sagep
-#end connection
-dev.off()
-#Now the cheatgrass x occupancy plot:
-tiff( 'Data/CheatXExt.tiff',
-      height = 10, width = 12, units = 'cm', 
-      compression = "lzw", res = 400 )
-#call the plot
-cheatp
 #end connection
 dev.off()
 

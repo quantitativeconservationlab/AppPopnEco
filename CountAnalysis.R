@@ -67,7 +67,7 @@ summary( umf )
 ### end data prep -----------
 ### Analyze data ------------------------------------------
 # We are now ready to perform our analysis. We start with a full model:
-fm.closed <- pcount( ~ 1 + obsv + time
+fm.trend <- pcountOpen( ~ 1 + obsv + time
                    ~ 1 + sagebrush + cheatgrass, 
                    #Define the maximum possible abundance
                    #during the primary occasion
