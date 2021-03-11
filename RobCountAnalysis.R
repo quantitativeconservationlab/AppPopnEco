@@ -186,9 +186,13 @@ fm.notrend <- pcountOpen( #lambda formula for initial abundance:
   K = 400,
   # don't calculate standard errors, which makes it run faster:
   se = FALSE, #useful for the first run
+  # set distribution as Poisson:
   mixture = "P", #NB or ZIP also possible 
+  # set to true if you want to separate migration from survival:
   immigration = FALSE,
+  # provide data
   data = umf, 
+  # set control parameters so that you can see progress:
   control = list( trace = TRUE, REPORT = 1) )
 
 # View model results:
@@ -212,13 +216,17 @@ fm.gompertz <- pcountOpen( #lambda formula for initial abundance:
   K = 500,
   # doesn't calculate standard errors, which makes it run faster:
   se = FALSE, #useful for the first run
+  # set distribution as Poisson:
   mixture = "P", #NB or ZIP also possible 
+  # set to true if you want to separate migration from survival:
   immigration = FALSE,
-  data = umf )
+  # provide data
+  data = umf, 
+  # set control parameters so that you can see progress:
+  control = list( trace = TRUE, REPORT = 1) )
 
 # View model results:
 fm.gompertz
-
 
 #backtransform parameter estimates
 lam <- exp(coef(fm.gompertz, type = "lambda"))
@@ -238,7 +246,11 @@ confint( fm.gompertz, type = 'det' )
 # Based on the overlap of the 95% CIs for your predictor coefficients, #
 # can you suggest which may be important to each of your responses? #
 # Answer:
-# 
+#
+
+# What would the Dail, Madsen (2011) model look like?
+# Answer:
+#
 #############end full model ###########
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
