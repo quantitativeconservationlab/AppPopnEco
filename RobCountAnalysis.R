@@ -144,23 +144,25 @@ summary( umf )
 #  start without estimating standard errors. #
 # This will allow you to check that you have specified the model correctly. #
 # Then build up from there. 
+# Be on the lookout for strange results such as likelihoods that don't decrease #
+# when you add additional parameters, or NaNs when se=TRUE.
 
 # Here we start with description of some of the options available. Please #
 # check the unmarked manual for further details. #
 
-# Initial abundance is always: N[i,t] ~ Poisson(lambda) #
+# Initial abundance is always: N[1,t] ~ Poisson(lambda) #
 # Survivors can be estimated from a Binomial process as density-dependent:
-# S[i,t+1] ~ Binomial( N[i,t], omega )
+# S[i,t+1] ~ Binomial( N[i,t], omega ), where omega represents apparent survival
 # if dynamics = "autoreg":
 # Recruits can be related to previous abundance, or density-dependent as:
 # R[i,t+1] ~ Poisson( N[i,t] * gamma ), where gamma represents per-capita recruitment
+# Note that under this second option, extinct sites (N[i,t]=0) cannot experience 
+# recruitment (i.e, cannot be rescued).
 # OR:
 # if dynamics = 'constant':
 # R[i,t+1] ~ Poisson( gamma ), where gamma becomes constant recruitment rate
-# Note that under this second option, extinct sites (N[i,t]=0) cannot experience 
-# recruitment (i.e, cannot be rescued).
 #
-# If dynamics = "notrend": lambda * (1-omega) and there is no temporal trend
+# If dynamics = "notrend": lambda * (1-omega) so there is no gamma or temporal trend 
 # If dynamics = "trend": then population growth is models as exponential growth:
 # N[i,t] = N[i,t-1] * gamma, where gamma is finite rate of increase (normally #
 # referred to as lambda ).
@@ -185,7 +187,7 @@ fm.notrend <- pcountOpen( #lambda formula for initial abundance:
   #Define the maximum possible abundance
   K = 400,
   # don't calculate standard errors, which makes it run faster:
-  se = FALSE, #useful for the first run
+  se = TRUE, #useful for the first run
   # set distribution as Poisson:
   mixture = "P", #NB or ZIP also possible 
   # set to true if you want to separate migration from survival:
@@ -206,18 +208,16 @@ fm.gompertz <- pcountOpen( #lambda formula for initial abundance:
   #gamma is instantaneous population growth rate (r)
   gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT, 
   #omega is carrying capacity (K)
-  omegaformula = ~1, 
+  omegaformula = ~1,
   #detection formula:
-  pformula = ~1 + observer + time + I(time)^2,  
+  pformula = ~1  + time + I(time)^2,  #
   #density-dependent population growth: N[i,t] = N[i,t-1] * 
   #exp( gamma * (1 - log(N[i,t-1] + 1) ) / log(omega + 1) )
   dynamics = 'gompertz', 
-  #Define the maximum possible abundance
-  K = 500,
+  # #Define the maximum possible abundance
+  K = 600, #Note here it's a lot higher than the preset value
   # doesn't calculate standard errors, which makes it run faster:
   se = FALSE, #useful for the first run
-  # set distribution as Poisson:
-  mixture = "P", #NB or ZIP also possible 
   # set to true if you want to separate migration from survival:
   immigration = FALSE,
   # provide data
@@ -228,20 +228,40 @@ fm.gompertz <- pcountOpen( #lambda formula for initial abundance:
 # View model results:
 fm.gompertz
 
+# Next we rerun the model with se=TRUE and use the values of the previous #
+# run, as initial values for the new model
+#define coefficients from the previous model as initial values for the next run
+inits <- coef( fm.gompertz )
+#run model
+fm.2 <- pcountOpen( lambdaformula = ~1, 
+                    gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT,
+                    omegaformula = ~1,  pformula = ~1  + time + I(time)^2, 
+                    dynamics = 'gompertz', K = 600, se = TRUE, data = umf,
+                    control = list( trace = TRUE, REPORT = 1), starts = inits )
+
+#define which model you want to view
+fm <- fm.2
+#view results
+summary(fm)
 #backtransform parameter estimates
-lam <- exp(coef(fm.gompertz, type = "lambda"))
-om <- plogis(coef(fm.gompertz, type = "omega"))
-gam <- exp( coef( fm.gompertz, type = "gamma"))
-p <- plogis( coef( fm.gompertz, type = "det" ) )
-#view
-lam; om; gam; p
+exp(coef(fm, type = "lambda"))
+#depending on your dynamics, the transformation is a expit or exp:
+plogis(coef(fm, type = "omega"))
+exp(coef(fm, type = "omega"))
+#depending on your dynamics, gamma may not be present (e.g. in no trend model)
+exp( coef( fm, type = "gamma"))
+plogis( coef( fm, type = "det" ) )
+
 # We can also estimate confidence intervals for coefficients in #
 # ecological submodel:
-confint( fm.gompertz, type = "lambda" )
-confint( fm.gompertz, type = "omega" )
-confint( fm.gompertz, type = "gamma" )
+# 1st season mean abundance:
+confint( fm, type = "lambda" )
+# omega is apparent survival in the no trend model, K in Gompertz
+confint( fm, type = "omega" )
+# There is no gamma in the notrend model,  
+confint( fm, type = "gamma" )
 # coefficients for detection submodel:
-confint( fm.gompertz, type = 'det' )
+confint( fm, type = 'det' )
 #
 # Based on the overlap of the 95% CIs for your predictor coefficients, #
 # can you suggest which may be important to each of your responses? #
@@ -261,42 +281,44 @@ confint( fm.gompertz, type = 'det' )
 # The test also estimates a c-hat measure of overdispersion, as the  #
 # observed test statistic divided by the mean of the simulated test statistics #
 
+#let's start by defining which model we want to test:
+fm <- fm.notrend
 # Let's compute observed chi-square, assess significance, and estimate c-hat
-gof.boot <- Nmix.gof.test( fm.gompertz, nsim = 500, print.table = TRUE )
+gof.boot <- Nmix.gof.test( fm, nsim = 500, print.table = TRUE )
 #view
 gof.boot
 # Remember that higher chi-squared values represent worse fit
 
 # What about a comparison of our fitted vs observed values?
-plot(  yy[,1], fitted( opendf )[,1] )
+plot(  yy[,1], fitted( fm )[,1] )
 for( j in 2:dim(y)[2]){
-  points( yy[,j], fitted( opendf )[,j] )
+  points( yy[,j], fitted( fm )[,j] )
 }
 # Now use gof checks outlined in Knape et al. 2018 MEE 9:2102-2114
 # We start by estimating overdispersion metrics 
-chat( fm.gompertz, type = 'marginal' )
-chat( fm.gompertz, type = 'site-sum' )
-chat( fm.gompertz, type = 'observation' )
+chat( fm, type = 'marginal' )
+chat( fm, type = 'site-sum' )
+chat( fm, type = 'observation' )
 
 # Plot rq residuals against untransformed numeric predictors. This may help
 # detect problems with the functional form assumed in a model
-residcov( fm.gompertz )
+residcov( fm )
 # What do the plots tell you?
 # Answer:
 #
 # Plot residuals against fitted values. Site-sum randomized quantile residuals
 # are used for site covariates while marginal residuals are used for
 # observation covariates. 
-residfit( fm.gompertz, type = 'site-sum' )
+residfit( fm, type = 'site-sum' )
 # Plot the observation model residuals
-residfit( fm.gompertz, type = 'observation' )
+residfit( fm, type = 'observation' )
 # What did Knape et al. 2018 say these residuals were useful for?
 # Answer:
 #
 # Niw plot Qq plots of randomized residuals against standard normal quantiles. #
 # Under a good fit, residuals should be close to the identity line. 
-residqq( fm.gompertz, type = 'site-sum' )
-residqq( fm.gompertz, type = 'observation' )
+residqq( fm, type = 'site-sum' )
+residqq( fm, type = 'observation' )
 
 #########################################################################
 ##### Summarizing model output ##############
