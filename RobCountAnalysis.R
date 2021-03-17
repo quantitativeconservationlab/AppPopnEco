@@ -325,10 +325,10 @@ residqq( fm, type = 'observation' )
 # Now we plot the results we are interested in.
 # We can see how mean occupancy changed through time by extracting values from
 # the projected.mean data table:
-fm.gompertz@projected.mean
+fm@projected.mean
 # select occupied row and combine it with year
 data.frame( year = sort( unique( opendf$year) ),
-            N = as.vector( fm.gompertz@projected.mean["abundance",] ) ) %>%
+            N = as.vector( fm@projected.mean["abundance",] ) ) %>%
   ggplot(., aes( x = year, y = N ) ) +
   theme_bw(base_size = 15 ) + 
   geom_line( size = 2 )
