@@ -3,16 +3,20 @@
 ##     This script was created by Dr. Jen Cruz as part of            ##
 ##            the Applied Population Ecology Class                  ###
 ##                                                                   ##  
-## Here we import our cleaned data for 2009 for the point count      ##
-#  observations for Piute ground squirrels at the NCA and run a      ##
-## closed population N-mixture analysis. The model is hierarchical    #
-#  with : (1) an ecological submodel linking abundance to             #
-## environmental predictors at each site; (2) an observation submodel #
-## linking detection probability to relevant predictors.             ##
+## Here we import our cleaned data for 2011 for single season capture-##
+#  recapture analysis for Piute ground squirrels at the NCA.         ##
 ##                                                                   ##
-# Abundance is expected to be higher in sites with more sagebrush     #
-# and lower in those with more cheatgrass.                            #                                        #
-# Detection may be related to observer effects and to time of day     #
+# Squirrel abundance may be influenced by low temperatures when they ##
+# emerge from hibernation in Feb and high temperatures in April-May, #
+# and habitat composition including % of cheatgrass and sagebrush.    #
+#                                                                     #
+#                                                                     #            
+# 20 sites were randomly selected for trapping over three days, after #
+# three days of pre-baiting. This approach is meant to increase       #
+# trappability, but may not avoid trap-happiness.                     #
+# Trapping occurred over multiple years but tags used for marking     #
+# individuals were temporary, so they lasted during the primary season#
+# but not between seasons.                                            # 
 #######################################################################
 
 ##### Set up your workspace and load relevant packages -----------
@@ -21,23 +25,36 @@ rm( list = ls() )
 # Check that you are in the right project folder
 getwd()
 
-#install relevant packages
-install.packages( 'Rtools' )
+# Start by installing the MARK program (which Rmark will talk to):
+#MARK is freely available software that was written by Dr. Gary White  #
+# and can be installed from:
+# http://www.phidot.org/software/mark/index.html
+  
+#install RMark
+install.packages( 'RMark' )
 
-library( nmixgof ) #more gof tests (Knape et al. 2018)
+#Now load relevant packages:
+library( tidyverse )
+library( RMark ) 
+library( unmarked ) #why unmarked?
+
 ## end of package load ###############
 ###################################################################
 #### Load or create data -----------------------------------------
 # set directory where your data are:
 datadir <- paste( getwd(), "/Data/", sep = "" )
 # load cleaned data
-closeddf <- read.csv( file = paste( datadir, "closed_counts.csv", sep = ""),
+ind_df <- read.csv( file = paste( datadir, "ind_2011.csv", sep = ""),
                       header = TRUE )
 #view
-head( closeddf ); dim( closeddf ) 
+head( ind_df ); dim( ind_df ) 
 #### End of data load -------------
 ####################################################################
 ##### Ready data for analysis --------------
+
+huggins.df <- convert.inp( ind_df )
+#sexid <- data.frame(sex=c("female","male")).
+
 ### end data prep -----------
 ### Analyze data ------------------------------------------
 # We are now ready to perform our analysis. We start with a full model:
