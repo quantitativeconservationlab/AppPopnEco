@@ -67,7 +67,7 @@ ggplot( N_naive, aes( x = year, y = captures, color = as.factor(o.sites) ) ) +
 #
 
 # Plot naive annual estimates of abundance
-N_naive %>%  group_by( year ) %>% 
+N_naive %>% group_by( year ) %>% 
   summarise( total = sum(captures) ) %>% 
   ggplot(., aes( x = year, y = total )) +
   geom_line( size = 2 ) +
@@ -105,7 +105,7 @@ write.csv( ind_2011, paste( getwd(),"/Data/ind_2011.csv", sep = "" ),
 
 # if you want to save your workspace, because you are still #
 # working through it use the following command:
-#save.image( "MarkPrepWorkspace.RData" )
+save.image( "MarkPrepWorkspace.RData" )
 ########## End of saving section ##################################
 ################## Save your data and workspace ###################
 

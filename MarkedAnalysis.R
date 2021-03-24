@@ -25,43 +25,192 @@ rm( list = ls() )
 # Check that you are in the right project folder
 getwd()
 
-# Start by installing the MARK program (which Rmark will talk to):
-#MARK is freely available software that was written by Dr. Gary White  #
-# and can be installed from:
-# http://www.phidot.org/software/mark/index.html
-  
-#install RMark
-install.packages( 'RMark' )
-
 #Now load relevant packages:
 library( tidyverse )
-library( RMark ) 
-library( unmarked ) #why unmarked?
+library( unmarked ) 
 
 ## end of package load ###############
 ###################################################################
 #### Load or create data -----------------------------------------
 # set directory where your data are:
 datadir <- paste( getwd(), "/Data/", sep = "" )
-# load cleaned data
-ind_df <- read.csv( file = paste( datadir, "ind_2011.csv", sep = ""),
-                      header = TRUE )
+#load multi-season data
+open_df <- read.csv( file = paste( datadir, "ind_multi.csv", sep = ""),
+                       header = TRUE, colClasses = c("ch"="character") )
 #view
-head( ind_df ); dim( ind_df ) 
+head( open_df ); dim( open_df ) 
+#import predictor data
+preddf <- read.csv( file = paste( datadir, "predictors.csv", sep = ""),
+                    header = TRUE )
+#view
+head( preddf ); dim( preddf )
 #### End of data load -------------
 ####################################################################
 ##### Ready data for analysis --------------
+#define parameters
+#number of replicate surveys
+J <- 3
+#number of sites
+M <- length( unique( open_df$o.sites) )
+#year range
+yrrange <- sort( unique( open_df$year))
+#number of years
+T <- length( yrrange)
+#turn ch to factor for multi-season:
+open_df$ch  <- factor( open_df$ch, 
+                       levels=c("001", "010", "011", "100", "101", "110", "111"))
+#convert sites to factor
+open_df$o.sites <- factor( open_df$o.sites )
 
-huggins.df <- convert.inp( ind_df )
-#sexid <- data.frame(sex=c("female","male")).
+#number of observed capture histories:
+CH <- length(levels(open_df$ch))
+#check
+str(open_df)
+#how many observations (frequency) for each capture history?
+table( open_df$ch)
 
+#we also need a matrix of zeros and ones with rows = J (repeat surveys) and 
+# cols = number of observed capture histories (ch):
+o2y <- matrix( data = 1, nrow = J, ncol = CH )
+
+#Define cell probabilities manually for M[t] model for CH = 7:
+# Remember that custom crPiFun can only take a single argument p, which must be#
+# the M x J matrix of detection probabilities. 
+crPiFun.t <- function(p) {
+  p1 <- p[,1] #detection for J survey 1
+  p2 <- p[,2] #detection for J survey 2
+  p3 <- p[,3] #detection for J survey 3
+  cbind("001" = (1-p1) * (1-p2) * p3,
+        "010" = (1-p1) * p2 * (1-p3),
+        "011" = (1-p1) * p2 * p3,
+        "100" = p1 * (1-p2) * (1-p3),
+        "101" = p1 * (1-p2) * p3,
+        "110" = p1 * p2 * (1-p3),
+        "111" = p1 * p2 * p3)
+}
+# To allow for p to vary by J survey we also need a covariate that represents 
+# each survey ID to be specified as an obsCov
+jMat <- matrix( 1:3, M, J, byrow = TRUE )
+
+#Now define cell probabilities for M[b] for CH = 7:
+crPiFun.b <- function(p) { 
+  pNaive <- p[,1]
+  pWise <- p[,3]
+  cbind("001" = (1-pNaive) * (1-pNaive) * pNaive,
+        "010" = (1-pNaive) * pNaive * (1-pWise),
+        "011" = (1-pNaive) * pNaive * pWise,
+        "100" = pNaive * (1-pWise) * (1-pWise),
+        "101" = pNaive * (1-pWise) * pWise,
+        "110" = pNaive * pWise * (1-pWise),
+        "111" = pNaive * pWise * pWise)
+}
+
+# Remember that there are limitations to the models that you can fit #
+# for example, you cannot fit an M[b,t] model 
+# we create a behavior covariate same as we did for the Jmat
+bMat <- matrix( c("Naive", "Naive", "Wise"), M, J, byrow = TRUE )
+
+#y data for single season Mt or Mo models
+#start by selecting 2011 data
+closed_df <- open_df %>% filter( year == 2011 )
+#check
+head( closed_df ); dim( closed_df )
+# if we are not using individual covariates then we can collapse our capture
+# histories for each site as follows
+y.closed <- table( closed_df$o.sites, closed_df$ch )
+#turn to matrix
+class( y.closed ) <- "matrix"
+dim(y.closed)
+#extract site covariates for 2011 and removing unmarked sites:
+sitepreds <- preddf %>% filter( year == 2011 & marked == "yes" ) %>% 
+                select( -counted, -yearname )
+head( sitepreds)
+dim( sitepreds)
+#define unmarked dataframe for single season
+umf.2011.Mt <- unmarkedFrameMPois( y = y.closed,
+              siteCovs = sitepreds[,c("cheatgrass", "sagebrush")],
+              #define survey id:
+              obsCovs = list( J = jMat, behavior = bMat ),
+              obsToY = o2y, piFun = "crPiFun.t" )
+#Why don't we include temperature predictors in the single season?
+#Answer: 
+#
+#check
+umf.2011.Mt
 ### end data prep -----------
 ### Analyze data ------------------------------------------
-# We are now ready to perform our analysis. We start with a full model:
+# We are now ready to perform our analysis.
+# For a single season: ######################
+# We start with M[o] models: -------
+Mo.int.closed <- multinomPois( #first function is for detection, second for abundance
+            #we start with intercept only models for both
+          ~1 ~1, 
+          #we can provide the Mt dataframe
+          umf.2011.Mt, engine="R")
+#Did it work?
+Mo.int.closed
 
+#Now we add site-level predictors to abundance submodel
+Mo.full.closed  <- multinomPois(~1
+                                #abundance
+                                ~1 + cheatgrass + sagebrush, 
+                                umf.2011.Mt, engine="R")
+#Did it work?
+Mo.full.closed
+#What do results say at first glance?
+#Answer:
+#
+# Now Mt with all abundance covariates:
+( Mt.full.closed <- multinomPois( ~1 + J 
+                                 ~1 + cheatgrass + sagebrush, 
+                                 umf.2011.Mt, engine="R" ) ) 
+# Mb with all covariates for abundance:
+( Mb.full.closed <- multinomPois( ~ behavior -1
+                                  ~1 + cheatgrass + sagebrush, 
+                                  umf.2011.Mt, engine="R" ) ) 
+
+# Note that we cannot include individual covariates in unmarked
+
+# We therefore move on and try to see which of our Mt, Mo or Mb models #
+# provided a better fit for our data: 
+#Create model list:
+closedmodels <- fitList( "Mo" = Mo.full.closed, 
+                         "Mt" = Mt.full.closed, 
+                        "Mb" =  Mb.full.closed )
+
+#compare
+modSel( closedmodels )
+# Which is our top model?
+# Answer:
+# 
+# What does it suggest: 
+# Answer:
+# 
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
-# We start with goodness of fit (GoF) outlined by Duarte et al. 2018 #
+# We rely on unmarked options for boostrap goodness-of-fit option in #
+# combination with custom built function fitstats, from Kery and Royle's
+# Hierarchical modelling book, Chpt 7 pg 333. Also see example in ?parboot.
+# The function computes error sum-of-squares, standard Chi-square and the #
+# Freeman-Tukey statistic:
+# Function returning three fit-statistics.
+fitstats <- function(fm) {
+  observed <- getY(fm@data)
+  expected <- fitted(fm)
+  resids <- residuals(fm)
+  sse <- sum(resids^2)
+  chisq <- sum((observed - expected)^2 / expected)
+  freeTuke <- sum((sqrt(observed) - sqrt(expected))^2)
+  out <- c(SSE=sse, Chisq=chisq, freemanTukey=freeTuke)
+  return(out)
+}
+
+(gof.Mt.full.closed <- parboot( Mt.full.closed, fitstats, nsim = 1000,
+                                report = 1) )
+
+# What do this results suggest? 
+# Answer: 
+# 
 
 #########################################################################
 ##### Summarizing model output ##############
@@ -118,7 +267,7 @@ cheatp
 ############################################################################
 ################## Save your data and workspace ###################
 # Save workspace:
-save.image( "CountResults.RData" )
+save.image( "MarkedResults.RData" )
 
 #save the plot objects you need for your presentation
 #Cheatgrass x abundance plot:
