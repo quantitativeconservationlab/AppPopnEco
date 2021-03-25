@@ -200,6 +200,19 @@ fm.notrend <- pcountOpen( #lambda formula for initial abundance:
 # View model results:
 fm.notrend
 
+# starting with an intercept only version of the Gompertz
+fm.gom0 <- pcountOpen( #lambda formula for initial abundance:
+  lambdaformula = ~1, 
+  #gamma is instantaneous population growth rate (r)
+  gammaformula = ~1, 
+  #omega is carrying capacity (K)
+  omegaformula = ~1,
+  pformula = ~1,  #
+  dynamics = 'gompertz', K = 1000,
+  se = FALSE, #useful for the first run
+  immigration = FALSE, data = umf, 
+  control = list( trace = TRUE, REPORT = 1) )
+
 # Now let's simulate population growth for the following years using a #
 # Gompertz model adapted to discrete time steps. #
 # See: Cruz et al. 2013 PLOS ONE 8(9):e73544 for example.

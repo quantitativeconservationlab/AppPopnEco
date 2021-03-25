@@ -77,17 +77,17 @@ M <- length( unique( open_df$o.sites) )
 # assign o.sites as a factor prior to filtering:
 #convert sites to factor
 open_df$o.sites <- factor( open_df$o.sites )
-#make closed dataframe
-closed_df <- open_df %>% filter( year == 2011 )
-#check
-head( closed_df ); dim( closed_df )
-
 #turn ch to factor for multi-season:
 open_df$ch  <- factor( open_df$ch, 
                        levels=c("001", "010", "011", "100", "101", "110", "111"))
 
 #number of observed capture histories:
 CH <- length(levels(open_df$ch))
+
+#make closed dataframe
+closed_df <- open_df %>% filter( year == 2011 )
+#check
+head( closed_df ); dim( closed_df )
 
 # We cannot use individual covariates so we collapse capture
 # histories for each site:
@@ -122,7 +122,7 @@ jMat <- matrix( 1:3, M, J, byrow = TRUE )
 #Now define cell probabilities for M[b] for CH = 7:
 crPiFun.b <- function(p) { 
   pNaive <- p[,1]
-  pWise <- p[,3]
+  pWise <- p[,2]
   cbind("001" = (1-pNaive) * (1-pNaive) * pNaive,
         "010" = (1-pNaive) * pNaive * (1-pWise),
         "011" = (1-pNaive) * pNaive * pWise,
@@ -148,7 +148,7 @@ umf.2011.Mt <- unmarkedFrameMPois( y = y.closed,
 #Answer: 
 #
 #check
-umf.2011.Mt
+summary(umf.2011.Mt)
 #define unmarked dataframe for M[b] and M[o] for single season
 umf.2011.Mb <- unmarkedFrameMPois( y = y.closed,
                 siteCovs = sitepreds,
@@ -162,7 +162,7 @@ umf.2011.Mb <- unmarkedFrameMPois( y = y.closed,
 ### Analyze data ------------------------------------------
 # We are now ready to perform our analysis.
 # For a single season: ######################
-# We start with M[o] intercep only model to check it all runs: -------
+# We start with M[o] intercept only model to check it all runs: -------
 Mo.int.closed <- multinomPois( #first function is for detection, second for abundance
             #we start with intercept only models for both
           ~1 ~1, 
@@ -186,7 +186,7 @@ Mo.full.closed
                                  ~1 + cheatgrass + sagebrush, 
                                  umf.2011.Mt, engine="R" ) ) 
 # Mb with all covariates for abundance:
-( Mb.full.closed <- multinomPois( ~ behavior -1
+( Mb.full.closed <- multinomPois( ~ behavior #-1
                                   ~1 + cheatgrass + sagebrush, 
                                   umf.2011.Mb, engine="R" ) ) 
 
@@ -357,7 +357,7 @@ ovenFrame <- unmarkedFrameMPois(
   siteCovs = as.data.frame(scale(ovendata.list$covariates[,-1])),
   #define pifun type: 
   type = "removal" )
-
+summary(ovenFrame)
 #fit full model:
 fm.tr <- multinomPois( #define detection model:
   ~ ufc 
@@ -367,7 +367,7 @@ fm.tr <- multinomPois( #define detection model:
   ovenFrame )
 #view results
 summary(fm.tr)
-
+#### end of removal example ----------
 ###################################################################
 ############################################################################
 ################## Save your data and workspace ###################

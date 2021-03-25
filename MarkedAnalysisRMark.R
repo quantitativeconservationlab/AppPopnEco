@@ -36,35 +36,93 @@ install.packages( 'RMark' )
 #Now load relevant packages:
 library( tidyverse )
 library( RMark ) 
-library( unmarked ) #why unmarked?
 
 ## end of package load ###############
 ###################################################################
 #### Load or create data -----------------------------------------
 # set directory where your data are:
 datadir <- paste( getwd(), "/Data/", sep = "" )
-# load cleaned data
-ind_df <- read.csv( file = paste( datadir, "ind_2011.csv", sep = ""),
-                    header = TRUE )
+# load single season data:
+closed_df <- read.csv( file = paste( datadir, "ind_2011.csv", sep = ""),
+                    header = TRUE, colClasses = c("ch"="character") )
 #view
-head( ind_df ); dim( ind_df ) 
+head( closed_df ); dim( closed_df ) 
+# load multi-season data:
+open_df <- read.csv( file = paste( datadir, "ind_multi.csv", sep = ""),
+                       header = TRUE, colClasses = c("ch"="character") )
+#view
+head( open_df ); dim( open_df ) 
+
 #### End of data load -------------
 ####################################################################
 ##### Ready data for analysis --------------
+# to use data with RMark we need  a column called ch that contains#
+# the capture frequencies as a string, and a freq colum that #
+# contains the capture frequencies (i.e., how many individuals with that
+# observed capture history). If freq is absent (such as in our case, 
+# then it assumed freq = 1).
+# Grouping variables must be factors and individual covariates must #
+# be numeric.
+
+# let's check our dataframes
+str(closed_df)
+# We need to turn sex to factor 
+closed_df$sex <- factor( closed_df$sex )
+
+str(open_df)
+# We need to turn sex to factor 
+open_df$sex <- factor( open_df$sex )
+
 
 huggins.df <- convert.inp( ind_df )
 #sexid <- data.frame(sex=c("female","male")).
 
 ### end data prep -----------
 ### Analyze data ------------------------------------------
-# We are now ready to perform our analysis. We start with a full model:
+# We are now ready to perform our analysis. Model options available in RMark
+# are in Table C.1 in the Laake, Rexstad 2008 Appendix C. 
+# We concentrate on the following models: Closed, Huggins, Robust, RDHuggins
+# Check out the manual for more details on each. 
 
+# Single season models -----------
+# The function mark is actually quite simple because it is a convenience function that calls 5 other
+# functions that actually do the work in the following order:
+#  1. process.data 
+# 2. make.design.data 
+# 3. make.mark.model 
+# 4. run.mark.model
+# 5. summary.mark
+# We start with the single season models. Starting simply with a 
+c.p <- process.data( closed_df, model = 'Closed', begin.time = 2011,
+                  groups = "sex" )
+names( c.p)
+#define an intercept only model for p (or p[.] or M[0])
+p.dot <- list( formula = ~1 )
+# define p[sex]:
+p.sex <- list(formula = ~sex )
+
+# The parameter specifications are used with the mark argument model.parameters to define the
+# model:
+fm.c.0 <- mark( closed_df, model.parameters = )
+
+# multi-season models ----------
+# We start with the famous Cormack-Jolly-Seber (CJS) model #
+# The model has two components: (1) a submodel for apparent survival (phi),
+# and (2) a submodel for detection (p). See chpt 10 of Powell and Gale for #
+# model details. 
+# This model requires a single survey per Primary season, with #
+# mortality allowed in between.
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
 # We start with goodness of fit (GoF) outlined by Duarte et al. 2018 #
 
 #########################################################################
 ##### Summarizing model output ##############
+# The individual elements can be extracted using list notation. For example, 
+#the data frame of the β parameters:
+fm$results$beta
+# To view all of the real parameters with standard errors, use summary
+summary( fm, se = TRUE )
 # Estimate partial prediction plots for predictors with 95% CIs not overlapping zero:
 # Start by creating our datasets to predict over
 # how many values do we use:
