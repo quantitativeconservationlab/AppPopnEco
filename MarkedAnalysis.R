@@ -34,11 +34,15 @@ library( unmarked )
 #### Load or create data -----------------------------------------
 # set directory where your data are:
 datadir <- paste( getwd(), "/Data/", sep = "" )
-#load multi-season data
+#load multi-season data 
 open_df <- read.csv( file = paste( datadir, "ind_multi.csv", sep = ""),
                        header = TRUE, colClasses = c("ch"="character") )
 #view
 head( open_df ); dim( open_df ) 
+# since we can model abundance we want to keep all sites in the single
+# season analysis even if there were no captures. The closed_df we #
+# had prepared in the MarkedPrep.R script removed those (for RMark)
+
 #import predictor data
 preddf <- read.csv( file = paste( datadir, "predictors.csv", sep = ""),
                     header = TRUE )
@@ -49,48 +53,14 @@ head( preddf ); dim( preddf )
 ##### Ready data for analysis --------------
 # start with the predictor dataframe: 
 # we start by reducing our dataframe to our marked sites:
-preddf <- preddf %>% filter( marked == "yes" ) %>% 
+preddf <- preddf %>% filter( marked == "yes" & year == 2011 ) %>% 
   select( -counted, -marked, -yearname )
-#we scale them
-sc <- apply( preddf[ ,c("cheatgrass", "sagebrush", "Feb.minT", "AprMay.maxT")],
-             MARGIN = 2, FUN = scale )
 # create scaled dataframe: 
-preddf.sc <- preddf
-preddf.sc[ ,c("cheatgrass", "sagebrush", "Feb.minT", "AprMay.maxT")] <- sc
-#check
-head( preddf.sc)
-#extract site covariates for 2011 and removing unmarked sites:
-sitepreds <- preddf.sc %>% filter( year == 2011 ) %>% 
-  select( cheatgrass, sagebrush )
-head( sitepreds)
-dim( sitepreds)
-
-#now create siteXyear dataframes:
-#for sagebrush:
-sagebrush <- preddf.sc %>% select( o.sites, year, sagebrush ) %>% 
-  spread( key = year, value = sagebrush ) %>% 
-  select( -o.sites )
-#check
-head(sagebrush); dim(sagebrush)
-#for cheatgrass:
-cheatgrass <- preddf.sc %>% select( o.sites, year, cheatgrass ) %>% 
-  spread( key = year, value = cheatgrass ) %>% 
-  select( -o.sites )
-#check
-head(sagebrush); dim(sagebrush)
-
-#for Feb temperature:
-Feb.minT <- preddf.sc %>% select( o.sites, year, Feb.minT ) %>% 
-  spread( key = year, value = Feb.minT ) %>% 
-  select( -o.sites )
-#check
-head(Feb.minT); dim(Feb.minT)
-#for Apr-May temperature:
-AprMay.maxT <- preddf.sc %>% select( o.sites, year, AprMay.maxT ) %>% 
-  spread( key = year, value = AprMay.maxT ) %>% 
-  select( -o.sites )
-#check
-head(AprMay.maxT); dim(AprMay.maxT)
+sc <- apply( preddf[ ,c("cheatgrass", "sagebrush")],
+             MARGIN = 2, FUN = scale )
+sitepreds <- as.data.frame( sc )
+# check
+head( sitepreds);dim( sitepreds)
 
 #### now for our response dataframes: ----------
 #define parameters
@@ -98,10 +68,6 @@ head(AprMay.maxT); dim(AprMay.maxT)
 J <- 3
 #number of sites
 M <- length( unique( open_df$o.sites) )
-#year range
-yrrange <- sort( unique( open_df$year))
-#number of years
-T <- length( yrrange)
 #turn ch to factor for multi-season:
 open_df$ch  <- factor( open_df$ch, 
                        levels=c("001", "010", "011", "100", "101", "110", "111"))
@@ -110,12 +76,22 @@ open_df$o.sites <- factor( open_df$o.sites )
 
 #number of observed capture histories:
 CH <- length(levels(open_df$ch))
-#check
-str(open_df)
-#how many observations (frequency) for each capture history?
-table( open_df$ch)
 
-#we also need a matrix of zeros and ones with rows = J (repeat surveys) and 
+# since we can include abundance in our models then we don't use #
+# the closed_df we created in our MarkedPrep.R because that one #
+# removed the sites where we had no captures. Instead here we keep #
+# them by having assigned o.sites as a factor prior to filtering:
+closed_df <- open_df %>% filter( year == 2011 )
+#check
+head( closed_df ); dim( closed_df )
+# if we are not using individual covariates then we can collapse our capture
+# histories for each site as follows
+y.closed <- table( closed_df$o.sites, closed_df$ch )
+#turn to matrix
+class( y.closed ) <- "matrix"
+dim(y.closed)
+
+#we need a matrix of zeros and ones with rows = J (repeat surveys) and 
 # cols = number of observed capture histories (ch):
 o2y <- matrix( data = 1, nrow = J, ncol = CH )
 
@@ -156,19 +132,6 @@ crPiFun.b <- function(p) {
 # we create a behavior covariate same as we did for the Jmat
 bMat <- matrix( c("Naive", "Naive", "Wise"), M, J, byrow = TRUE )
 
-# since we can include abundance in our models then we don't use #
-# the closed_df we created in our MarkedPrep.R because that one #
-# removed the sites where we had no captures. Instead here we keep #
-# them by having assigned o.sites as a factor prior to filtering:
-closed_df <- open_df %>% filter( year == 2011 )
-#check
-head( closed_df ); dim( closed_df )
-# if we are not using individual covariates then we can collapse our capture
-# histories for each site as follows
-y.closed <- table( closed_df$o.sites, closed_df$ch )
-#turn to matrix
-class( y.closed ) <- "matrix"
-dim(y.closed)
 #define unmarked dataframe for M[t] and M[o] for single season
 umf.2011.Mt <- unmarkedFrameMPois( y = y.closed,
               siteCovs = sitepreds,
@@ -187,42 +150,6 @@ umf.2011.Mb <- unmarkedFrameMPois( y = y.closed,
                 obsCovs = list( behavior = bMat ),
                 obsToY = o2y, piFun = "crPiFun.b" )
 
-####### Multi-season data prep ---------------
-# to extract data for multi-seasons we start by selecting the #
-# capture histories
-head(open_df )
-# we calculate the frequencies for each site and year:
-y.df <- table( open_df$o.sites, open_df$ch,open_df$year )
-# then we convert from list to wide format
-y.open <- y.df[,,1]
-for( t in 2:T){
-  y.open <- cbind( y.open, y.df[,,t] )
-}
-#check it
-head( y.open ); dim( y.open)
-# convert to matrix
-class( y.open ) <- "matrix"
-#now expand the o2y:
-o2yGMM <- kronecker(diag(T), o2y)
-
-#updated dataframe for behavior repeated over T years:
-bMat.open <- replicate( T, bMat, simplify = FALSE)
-bMat.open <- do.call(cbind.data.frame, bMat.open)
-head( bMat.open); dim( bMat.open)
-#now turn it into unmarked dataframe:
-umf.open <- unmarkedFrameGMM( y = y.open, 
-            # we don't have any site level covariates
-            # We define our siteXyear covariates:
-            yearlySiteCovs = list(  sagebrush = sagebrush,
-            cheatgrass = cheatgrass,Feb.minT =Feb.minT,
-            AprMay.maxT =  AprMay.maxT ),
-            #define behavior covariates:
-            obsCovs = list( behavior = bMat.open ),
-            #user defined cell probabilities and years
-            obsToY = o2yGMM, piFun = "crPiFun.b", numPrimary = T )
-          
-#view
-summary( umf.open )
 ### end data prep -----------
 ### Analyze data ------------------------------------------
 # We are now ready to perform our analysis.
@@ -276,8 +203,6 @@ modSel( closedmodels )
 # What does it suggest: 
 # Answer:
 # 
-######## For multiple seasons -----------
-
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
 # We rely on unmarked options for boostrap goodness-of-fit option in #
@@ -297,7 +222,7 @@ fitstats <- function(fm) {
   return(out)
 }
 
-(gof.Mt.full.closed <- parboot( Mt.full.closed, fitstats, nsim = 1000,
+(gof.Mb.full.closed <- parboot( Mb.full.closed, fitstats, nsim = 1000,
                                 report = 1) )
 
 # What do this results suggest? 
@@ -307,36 +232,36 @@ fitstats <- function(fm) {
 #########################################################################
 ##### Summarizing model output ##############
 # Estimate partial prediction plots for predictors with 95% CIs not overlapping zero:
-# Start by creating our datasets to predict over
+# Which model do we want to use:
+fm <- Mb.full.closed
 # how many values do we use:
 n <- 100
 # Use the observed values to define our range:
-cheatgrass <- seq( min( closeddf[,"cheatgrass"]),max( closeddf[,"cheatgrass"]),
+cheatgrass <- seq( min( preddf[,"cheatgrass"]),max( preddf[,"cheatgrass"]),
                    length.out = n )
-# what are the min max times:
-closeddf %>% select( time.j1, time.j2, time.j3 ) %>% 
-  summarise_all(list(min, max))
-#use them to define your bounds:
-Time <- round(seq( 0, 360, length.out = n ),0)
-#standardize predictors:
+#scale
 cheat.std <- scale( cheatgrass )
-time.std <- scale( Time )
-#combine standardized predictors into a new dataframe to predict partial relationship
+#combine standardized predictors into anew dataframe to predict partial relationship
 # for abundance submodel:
-abundData <- data.frame( sagebrush = 0, cheatgrass = cheat.std )
+abundData <- data.frame( cheatgrass = cheat.std, sagebrush = 0  )
 #predict partial relationship:
-pred.cheat <- predict( fm.closed, type = "state", newdata = abundData, 
+pred.cheat <- predict( fm, type = "abund", newdata = abundData, 
                        appendData = TRUE )
 #view
 head( pred.cheat ); dim( pred.cheat )
-# now for detection
-detData <- data.frame( obsv = factor(c("tech.1", "tech.1","tech.1", "tech.1"), 
-                                     levels = c("tech.1", "tech.2","tech.3", "tech.4") ), 
-                       time = time.std )
-#predict partial relationship:
-pred.time <- predict( fm.closed, type = "det", newdata = detData, 
-                      appendData = TRUE )
 
+# we use the observed values to define our range:
+sage <- seq( min( preddf[,"sagebrush"]),max( preddf[,"sagebrush"]),
+             length.out = n )
+#standardize them
+sage.std <- scale( sage )
+#combine standardized predictor into a new dataframe to predict partial relationship
+sageData <- data.frame( cheatgrass = 0, sagebrush = sage.std )
+#predict partial relationship
+pred.sage <- predict( fm, type = "state", newdata = sageData, 
+                      appendData = TRUE )
+#view
+head( pred.sage ); dim( pred.sage )
 # create plot for ecological submodel:
 cheatp <- cbind( pred.cheat[,c("Predicted", "lower", "upper") ], cheatgrass ) %>%
   # define x and y values
@@ -356,6 +281,23 @@ cheatp
 # How do you interpret this relationship?
 # Answer:
 
+# create plots for ecological submodels
+sagep <- cbind( pred.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %>%
+  # define x and y values
+  ggplot(., aes( x = sagebrush, y = Predicted ) ) + 
+  #choose preset look
+  theme_bw( base_size = 15 ) +
+  # add labels
+  labs( x = "Sagebrush (%)", y = "Instantaneous growth rate" ) +
+  # add band of confidence intervals
+  geom_smooth( aes(ymin = lower, ymax = upper ), 
+               stat = "identity",
+               size = 1.5, alpha = 0.5, color = "grey" ) +
+  # add mean line on top
+  geom_line( size = 2 ) 
+#view
+sagep
+# How do you interpret this relationship?
 ############################################################################
 ################## Save your data and workspace ###################
 # Save workspace:
