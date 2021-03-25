@@ -58,6 +58,7 @@ preddf <- preddf %>% filter( marked == "yes" & year == 2011 ) %>%
 # create scaled dataframe: 
 sc <- apply( preddf[ ,c("cheatgrass", "sagebrush")],
              MARGIN = 2, FUN = scale )
+#turn to dataframe for input into umarked:
 sitepreds <- as.data.frame( sc )
 # check
 head( sitepreds);dim( sitepreds)
@@ -68,31 +69,33 @@ head( sitepreds);dim( sitepreds)
 J <- 3
 #number of sites
 M <- length( unique( open_df$o.sites) )
+# We can include abundance in these models, so we don't use #
+# the closed_df we created in our MarkedPrep.R because that one #
+# removed the sites with no captures. Here we keep them when we #
+# assign o.sites as a factor prior to filtering:
+#convert sites to factor
+open_df$o.sites <- factor( open_df$o.sites )
+#make closed dataframe
+closed_df <- open_df %>% filter( year == 2011 )
+#check
+head( closed_df ); dim( closed_df )
+
 #turn ch to factor for multi-season:
 open_df$ch  <- factor( open_df$ch, 
                        levels=c("001", "010", "011", "100", "101", "110", "111"))
-#convert sites to factor
-open_df$o.sites <- factor( open_df$o.sites )
 
 #number of observed capture histories:
 CH <- length(levels(open_df$ch))
 
-# since we can include abundance in our models then we don't use #
-# the closed_df we created in our MarkedPrep.R because that one #
-# removed the sites where we had no captures. Instead here we keep #
-# them by having assigned o.sites as a factor prior to filtering:
-closed_df <- open_df %>% filter( year == 2011 )
-#check
-head( closed_df ); dim( closed_df )
-# if we are not using individual covariates then we can collapse our capture
-# histories for each site as follows
+# We cannot use individual covariates so we collapse capture
+# histories for each site:
 y.closed <- table( closed_df$o.sites, closed_df$ch )
 #turn to matrix
 class( y.closed ) <- "matrix"
 dim(y.closed)
 
-#we need a matrix of zeros and ones with rows = J (repeat surveys) and 
-# cols = number of observed capture histories (ch):
+#we need a matrix of zeros (if not sampled) and ones (if sampled) #
+# with rows = J (repeat surveys) and  cols = observed capture histories (ch):
 o2y <- matrix( data = 1, nrow = J, ncol = CH )
 
 #Define cell probabilities manually for M[t] model for CH = 7:
@@ -137,6 +140,7 @@ umf.2011.Mt <- unmarkedFrameMPois( y = y.closed,
               siteCovs = sitepreds,
               #define survey id:
               obsCovs = list( J = jMat ),
+              #we use the pifun we defined for M[t]:
               obsToY = o2y, piFun = "crPiFun.t" )
 #Why don't we include temperature predictors in the single season?
 #Answer: 
@@ -148,13 +152,15 @@ umf.2011.Mb <- unmarkedFrameMPois( y = y.closed,
                 siteCovs = sitepreds,
                 #define behavior covariate:
                 obsCovs = list( behavior = bMat ),
+                #we use the pifum we defined for M[b]
                 obsToY = o2y, piFun = "crPiFun.b" )
 
 ### end data prep -----------
+#######################################################################
 ### Analyze data ------------------------------------------
 # We are now ready to perform our analysis.
 # For a single season: ######################
-# We start with M[o] models: -------
+# We start with M[o] intercep only model to check it all runs: -------
 Mo.int.closed <- multinomPois( #first function is for detection, second for abundance
             #we start with intercept only models for both
           ~1 ~1, 
@@ -202,7 +208,9 @@ modSel( closedmodels )
 # 
 # What does it suggest: 
 # Answer:
-# 
+#
+# We can assume temporary emigration among J surveys but not births or deaths#
+# so we cannot really use our multi-season data in unmarked
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
 # We rely on unmarked options for boostrap goodness-of-fit option in #
@@ -245,7 +253,7 @@ cheat.std <- scale( cheatgrass )
 # for abundance submodel:
 abundData <- data.frame( cheatgrass = cheat.std, sagebrush = 0  )
 #predict partial relationship:
-pred.cheat <- predict( fm, type = "abund", newdata = abundData, 
+pred.cheat <- predict( fm, type = "state", newdata = abundData, 
                        appendData = TRUE )
 #view
 head( pred.cheat ); dim( pred.cheat )
@@ -282,13 +290,13 @@ cheatp
 # Answer:
 
 # create plots for ecological submodels
-sagep <- cbind( pred.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %>%
+sagep <- cbind( pred.sage[,c("Predicted", "lower", "upper") ], sage ) %>%
   # define x and y values
-  ggplot(., aes( x = sagebrush, y = Predicted ) ) + 
+  ggplot(., aes( x = sage, y = Predicted ) ) + 
   #choose preset look
   theme_bw( base_size = 15 ) +
   # add labels
-  labs( x = "Sagebrush (%)", y = "Instantaneous growth rate" ) +
+  labs( x = "Sagebrush (%)", y = "Relative abundance" ) +
   # add band of confidence intervals
   geom_smooth( aes(ymin = lower, ymax = upper ), 
                stat = "identity",
@@ -298,6 +306,36 @@ sagep <- cbind( pred.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %>%
 #view
 sagep
 # How do you interpret this relationship?
+# Answer:
+#
+# Now we plot detection for trap naive and wise individuals:
+#now for observer effects:
+obsvDet <- data.frame( behavior = factor( c("Naive", "Wise" ), 
+                levels = c("Naive", "Wise") ) )
+#predict partial relationship between observer effects and detection
+pred.det.obsv <- predict( fm, type = "det", newdata = obsvDet, 
+                          appendData = TRUE )
+
+# Now observer and detection:
+obsvp.det <- pred.det.obsv %>%
+  # define x and y values
+  ggplot(., aes( x = behavior, y = Predicted, color = behavior ) ) + 
+  #choose preset look
+  theme_bw( base_size = 15 ) +
+  #remove legend
+  theme( legend.position = "none" ) +
+  # add labels
+  labs( x = "Behavior", y = "Probability of detection" ) +
+  #add mean detection for each observer
+  geom_point( size = 4 ) +
+  # add confidence intervals
+  geom_errorbar( aes(ymin = lower, ymax = upper ), 
+                 size = 1.5, width = 0.3 ) 
+#view
+obsvp.det
+#What do these results suggest? Are individuals trap-happy or shy?
+# Answer:
+#
 ############################################################################
 ################## Save your data and workspace ###################
 # Save workspace:
@@ -305,11 +343,11 @@ save.image( "MarkedResults.RData" )
 
 #save the plot objects you need for your presentation
 #Cheatgrass x abundance plot:
-tiff( 'Data/CheatXAbund.tiff',
+tiff( 'Data/TrapBehavior.tiff',
       height = 10, width = 12, units = 'cm', 
       compression = "lzw", res = 400 )
 #call the plot
-cheatp
+obsvp.det
 #end connection
 dev.off()
 
