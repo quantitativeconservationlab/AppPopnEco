@@ -47,6 +47,52 @@ head( preddf ); dim( preddf )
 #### End of data load -------------
 ####################################################################
 ##### Ready data for analysis --------------
+# start with the predictor dataframe: 
+# we start by reducing our dataframe to our marked sites:
+preddf <- preddf %>% filter( marked == "yes" ) %>% 
+  select( -counted, -marked, -yearname )
+#we scale them
+sc <- apply( preddf[ ,c("cheatgrass", "sagebrush", "Feb.minT", "AprMay.maxT")],
+             MARGIN = 2, FUN = scale )
+# create scaled dataframe: 
+preddf.sc <- preddf
+preddf.sc[ ,c("cheatgrass", "sagebrush", "Feb.minT", "AprMay.maxT")] <- sc
+#check
+head( preddf.sc)
+#extract site covariates for 2011 and removing unmarked sites:
+sitepreds <- preddf.sc %>% filter( year == 2011 ) %>% 
+  select( cheatgrass, sagebrush )
+head( sitepreds)
+dim( sitepreds)
+
+#now create siteXyear dataframes:
+#for sagebrush:
+sagebrush <- preddf.sc %>% select( o.sites, year, sagebrush ) %>% 
+  spread( key = year, value = sagebrush ) %>% 
+  select( -o.sites )
+#check
+head(sagebrush); dim(sagebrush)
+#for cheatgrass:
+cheatgrass <- preddf.sc %>% select( o.sites, year, cheatgrass ) %>% 
+  spread( key = year, value = cheatgrass ) %>% 
+  select( -o.sites )
+#check
+head(sagebrush); dim(sagebrush)
+
+#for Feb temperature:
+Feb.minT <- preddf.sc %>% select( o.sites, year, Feb.minT ) %>% 
+  spread( key = year, value = Feb.minT ) %>% 
+  select( -o.sites )
+#check
+head(Feb.minT); dim(Feb.minT)
+#for Apr-May temperature:
+AprMay.maxT <- preddf.sc %>% select( o.sites, year, AprMay.maxT ) %>% 
+  spread( key = year, value = AprMay.maxT ) %>% 
+  select( -o.sites )
+#check
+head(AprMay.maxT); dim(AprMay.maxT)
+
+#### now for our response dataframes: ----------
 #define parameters
 #number of replicate surveys
 J <- 3
@@ -110,8 +156,10 @@ crPiFun.b <- function(p) {
 # we create a behavior covariate same as we did for the Jmat
 bMat <- matrix( c("Naive", "Naive", "Wise"), M, J, byrow = TRUE )
 
-#y data for single season Mt or Mo models
-#start by selecting 2011 data
+# since we can include abundance in our models then we don't use #
+# the closed_df we created in our MarkedPrep.R because that one #
+# removed the sites where we had no captures. Instead here we keep #
+# them by having assigned o.sites as a factor prior to filtering:
 closed_df <- open_df %>% filter( year == 2011 )
 #check
 head( closed_df ); dim( closed_df )
@@ -121,22 +169,60 @@ y.closed <- table( closed_df$o.sites, closed_df$ch )
 #turn to matrix
 class( y.closed ) <- "matrix"
 dim(y.closed)
-#extract site covariates for 2011 and removing unmarked sites:
-sitepreds <- preddf %>% filter( year == 2011 & marked == "yes" ) %>% 
-                select( -counted, -yearname )
-head( sitepreds)
-dim( sitepreds)
-#define unmarked dataframe for single season
+#define unmarked dataframe for M[t] and M[o] for single season
 umf.2011.Mt <- unmarkedFrameMPois( y = y.closed,
-              siteCovs = sitepreds[,c("cheatgrass", "sagebrush")],
+              siteCovs = sitepreds,
               #define survey id:
-              obsCovs = list( J = jMat, behavior = bMat ),
+              obsCovs = list( J = jMat ),
               obsToY = o2y, piFun = "crPiFun.t" )
 #Why don't we include temperature predictors in the single season?
 #Answer: 
 #
 #check
 umf.2011.Mt
+#define unmarked dataframe for M[b] and M[o] for single season
+umf.2011.Mb <- unmarkedFrameMPois( y = y.closed,
+                siteCovs = sitepreds,
+                #define behavior covariate:
+                obsCovs = list( behavior = bMat ),
+                obsToY = o2y, piFun = "crPiFun.b" )
+
+####### Multi-season data prep ---------------
+# to extract data for multi-seasons we start by selecting the #
+# capture histories
+head(open_df )
+# we calculate the frequencies for each site and year:
+y.df <- table( open_df$o.sites, open_df$ch,open_df$year )
+# then we convert from list to wide format
+y.open <- y.df[,,1]
+for( t in 2:T){
+  y.open <- cbind( y.open, y.df[,,t] )
+}
+#check it
+head( y.open ); dim( y.open)
+# convert to matrix
+class( y.open ) <- "matrix"
+#now expand the o2y:
+o2yGMM <- kronecker(diag(T), o2y)
+
+#updated dataframe for behavior repeated over T years:
+bMat.open <- replicate( T, bMat, simplify = FALSE)
+bMat.open <- do.call(cbind.data.frame, bMat.open)
+head( bMat.open); dim( bMat.open)
+#now turn it into unmarked dataframe:
+umf.open <- unmarkedFrameGMM( y = y.open, 
+            # we don't have any site level covariates
+            # We define our siteXyear covariates:
+            yearlySiteCovs = list(  sagebrush = sagebrush,
+            cheatgrass = cheatgrass,Feb.minT =Feb.minT,
+            AprMay.maxT =  AprMay.maxT ),
+            #define behavior covariates:
+            obsCovs = list( behavior = bMat.open ),
+            #user defined cell probabilities and years
+            obsToY = o2yGMM, piFun = "crPiFun.b", numPrimary = T )
+          
+#view
+summary( umf.open )
 ### end data prep -----------
 ### Analyze data ------------------------------------------
 # We are now ready to perform our analysis.
@@ -167,7 +253,7 @@ Mo.full.closed
 # Mb with all covariates for abundance:
 ( Mb.full.closed <- multinomPois( ~ behavior -1
                                   ~1 + cheatgrass + sagebrush, 
-                                  umf.2011.Mt, engine="R" ) ) 
+                                  umf.2011.Mb, engine="R" ) ) 
 
 # Note that we cannot include individual covariates in unmarked
 
@@ -175,9 +261,13 @@ Mo.full.closed
 # provided a better fit for our data: 
 #Create model list:
 closedmodels <- fitList( "Mo" = Mo.full.closed, 
-                         "Mt" = Mt.full.closed, 
-                        "Mb" =  Mb.full.closed )
+                         "Mt" = Mt.full.closed 
+                        ,"Mb" =  Mb.full.closed 
+                       )
 
+#why can't we compare these models?
+# Answer: 
+#
 #compare
 modSel( closedmodels )
 # Which is our top model?
@@ -186,6 +276,8 @@ modSel( closedmodels )
 # What does it suggest: 
 # Answer:
 # 
+######## For multiple seasons -----------
+
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
 # We rely on unmarked options for boostrap goodness-of-fit option in #
