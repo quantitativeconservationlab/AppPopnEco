@@ -24,10 +24,12 @@
 rm( list = ls() )
 # Check that you are in the right project folder
 getwd()
-
+# install packages
+install.packages( "AHMbook" )
 #Now load relevant packages:
 library( tidyverse )
 library( unmarked ) 
+library( AHMbook ) #contains data and functions from book
 
 ## end of package load ###############
 ###################################################################
@@ -229,7 +231,7 @@ fitstats <- function(fm) {
   out <- c(SSE=sse, Chisq=chisq, freemanTukey=freeTuke)
   return(out)
 }
-
+# the fitstats function is also available via the AHMbook package
 (gof.Mb.full.closed <- parboot( Mb.full.closed, fitstats, nsim = 1000,
                                 report = 1) )
 
@@ -336,6 +338,37 @@ obsvp.det
 #What do these results suggest? Are individuals trap-happy or shy?
 # Answer:
 #
+########################################################################
+#### Removal sampling example ----------------------------
+# We rely heavily on example 1, section 7.5 of hierarchical book:
+# go here for more details: https://sites.google.com/site/appliedhierarchicalmodeling/home
+data( ovendata )
+#view bit of data:
+ovendata.list$data[11:20,]; dim( ovendata.list$data )  
+#so there are 70 point count sites and 4 time removal periods, 3min each:
+#now check out the covariates:
+ovendata.list$covariates[1:10,]
+#where UFC is under foliage cover and TRBA is basal area of large trees
+#create time removal dataframe
+ovenFrame <- unmarkedFrameMPois(
+  # import time removal counts:
+  y = ovendata.list$data,
+  #import and scale site level covariates:
+  siteCovs = as.data.frame(scale(ovendata.list$covariates[,-1])),
+  #define pifun type: 
+  type = "removal" )
+
+#fit full model:
+fm.tr <- multinomPois( #define detection model:
+  ~ ufc 
+  #define abundance model, including an interaction term:
+  ~ ufc + trba + ufc:trba, 
+  #define data
+  ovenFrame )
+#view results
+summary(fm.tr)
+
+###################################################################
 ############################################################################
 ################## Save your data and workspace ###################
 # Save workspace:
