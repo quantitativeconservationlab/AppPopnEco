@@ -105,6 +105,33 @@ p.sex <- list(formula = ~sex )
 # model:
 fm.c.0 <- mark( closed_df, model.parameters = )
 
+####### comparing models
+# If you leave this function empty, it searches at all objects with class 'mark'
+# in the workspace and collates them into the ms object. 
+ms <- collect.models()
+# view 
+ms
+# if we need to remove some from the list 
+#ms <- remove.mark( ms, c(1,3))
+# if we wanted to model average results
+ma <- model.average(ms,"p")
+# Model averaging methods follow those in Burnham and Anderson (2002, Chpt 4)#
+# CIs are estimated using the Delta-method. 
+# Note that MARK can fail to adequately count the number of parameters in a #
+# model, particularly complicated ones, and so it may favor overly complicated #
+# models as a result of undercounting. So make sure that you check whether the #
+# parameter count was done correctly. You can adjust by using adjust.parameter.count
+
+# When would it be a good idea to model average?
+# Answer:
+#
+
+# fixing parameters
+p.time.fixed=list(formula=~time,fixed=list(time=c(2011,2018),value=0))
+
+# You can set values to defaults if needed by:
+#model0 <- mark( data, model.parameters = list(p=list(default = 0.9)))
+
 # multi-season models ----------
 # We start with the famous Cormack-Jolly-Seber (CJS) model #
 # The model has two components: (1) a submodel for apparent survival (phi),
@@ -118,9 +145,13 @@ fm.c.0 <- mark( closed_df, model.parameters = )
 
 #########################################################################
 ##### Summarizing model output ##############
+#define the model that you want output for:
+fm <- 
 # The individual elements can be extracted using list notation. For example, 
 #the data frame of the β parameters:
 fm$results$beta
+#beta estimates:
+coefs(fm)
 # To view all of the real parameters with standard errors, use summary
 summary( fm, se = TRUE )
 # Estimate partial prediction plots for predictors with 95% CIs not overlapping zero:
