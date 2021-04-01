@@ -10,7 +10,6 @@
 # emerge from hibernation in Feb and high temperatures in April-May, #
 # and habitat composition including % of cheatgrass and sagebrush.    #
 #                                                                     #
-#                                                                     #            
 # 20 sites were randomly selected for trapping over three days, after #
 # three days of pre-baiting. This approach is meant to increase       #
 # trappability, but may not avoid trap-happiness.                     #
@@ -47,12 +46,12 @@ closed_df <- read.csv( file = paste( datadir, "ind_2011.csv", sep = ""),
                     header = TRUE, colClasses = c("ch"="character") )
 #view
 head( closed_df ); dim( closed_df ) 
-# load multi-season data:
-open_df <- read.csv( file = paste( datadir, "ind_multi.csv", sep = ""),
-                       header = TRUE, colClasses = c("ch"="character") )
-#view
-head( open_df ); dim( open_df ) 
 
+#import predictor data
+preddf <- read.csv( file = paste( datadir, "predictors.csv", sep = ""),
+                    header = TRUE )
+#view
+head( preddf ); dim( preddf )
 #### End of data load -------------
 ####################################################################
 ##### Ready data for analysis --------------
@@ -64,46 +63,102 @@ head( open_df ); dim( open_df )
 # Grouping variables must be factors and individual covariates must #
 # be numeric.
 
-# let's check our dataframes
+# let's check our dataframe
 str(closed_df)
+#remove unnecesary columns
+c_df <- closed_df %>% select(o.sites, sex, ch )
+#combine with site-level predictors:
+c_df <- preddf %>% filter( marked == "yes" & year == 2011 ) %>% 
+            #remove weather variables:
+            select( o.sites, cheatgrass, sagebrush ) %>% 
+            # right join so that only sites with captured individuals are kept:
+            right_join( c_df, by = "o.sites" )
 # We need to turn sex to factor 
-closed_df$sex <- factor( closed_df$sex )
-
-str(open_df)
-# We need to turn sex to factor 
-open_df$sex <- factor( open_df$sex )
-
-
-huggins.df <- convert.inp( ind_df )
-#sexid <- data.frame(sex=c("female","male")).
-
+c_df$sex <- factor( c_df$sex )
+#convert sites to factor
+c_df$o.sites <- factor( c_df$o.sites)
+#view
+head( c_df)
+# now scale predictors
+c_df$sagebrush <- scale( c_df$sagebrush )
+c_df$cheatgrass <- scale( c_df$cheatgrass )
 ### end data prep -----------
 ### Analyze data ------------------------------------------
 # We are now ready to perform our analysis. Model options available in RMark
 # are in Table C.1 in the Laake, Rexstad 2008 Appendix C. 
-# We concentrate on the following models: Closed, Huggins, Robust, RDHuggins
-# Check out the manual for more details on each. 
-
-# Single season models -----------
-# The function mark is actually quite simple because it is a convenience function that calls 5 other
-# functions that actually do the work in the following order:
-#  1. process.data 
+# We concentrate on the following models: Huggins and Closed 
+# Check out Lukacs Chapter 14 for more details on each. 
+# What are the main differences between the two model options:
+# Answer:
+# 
+# The function mark is a convenience function that calls 5 other
+# functions that do the following:
+# 1. process.data 
 # 2. make.design.data 
 # 3. make.mark.model 
 # 4. run.mark.model
 # 5. summary.mark
-# We start with the single season models. Starting simply with a 
-c.p <- process.data( closed_df, model = 'Closed', begin.time = 2011,
-                  groups = "sex" )
-names( c.p)
-#define an intercept only model for p (or p[.] or M[0])
-p.dot <- list( formula = ~1 )
-# define p[sex]:
-p.sex <- list(formula = ~sex )
 
-# The parameter specifications are used with the mark argument model.parameters to define the
-# model:
-fm.c.0 <- mark( closed_df, model.parameters = )
+# However, as you saw in Laake, Rexstad (2008) we can also manipuate each #
+# step independently. 
+# We start with step 1: process.data
+# We need to specify the model type
+c.pr <- process.data( c_df, model = 'Huggins',
+                      #and how many groups are in our data
+                      groups = c("sex", "o.sites" ) )
+summary( c.pr)
+#Now we do step 2. make design data:
+c.ddl <- make.design.data( c.pr ) 
+# we have already incorporated predictors into our dataframe so we don't alter
+# our ddl here
+# Check that it worked as we expected:
+c.ddl
+
+# Now we define the formula of the submodels that we are interested in:
+# Starting with the M[0] or M[.] or intercept-only model:
+dot <- list( formula = ~1 )
+# For detection we are interested in sex differences and the effects of sagebrush:
+sex.sage <- list( formula = ~sex + sagebrush -1 )
+# Why do we have a -1?
+# Answer:
+# 
+# What if differences in detection are due to site differences not related to 
+# habitat? Could we add a site predictor instead? 
+sex.site <- list( formula = ~sex + o.sites  -1 )
+# Can you see that this is a competing model for the sex.sage option?
+
+# Now we are ready for step 4: run our first model:
+# The parameter specifications are used with the mark argument model.parameters 
+#to define the model:
+fm.sage <- mark( c.pr, c.ddl, 
+          # the Huggins model has two response parameters: p = prob of capture
+          #c = probability of recapture. We assign formulas to each submodel:
+          model.parameters = list( p = sex.sage, c = sex.sage ))
+#Step 5: summary of results:
+summary( fm.sage)
+#view coefficients:
+fm.sage$results$beta
+#view abundance estimates
+fm.sage$results$derived
+# What do these results tell us?
+# Answer:
+#
+# Now we run our competing model:
+fm.site  <- mark( c.pr, c.ddl, 
+            model.parameters = list( p = sex.site, c = sex.site ))
+# View results
+fm.site$results$derived
+# What do these tell us?
+# Answer:
+
+# Now let's run the null model to compare it against:
+fm.null <- mark( c.pr, c.ddl, 
+                 model.parameters = list( p = dot, c = dot ))
+# view results:
+fm.null$results$derived
+
+#compare to naive estimates
+colSums(closed_df[,c("trap.j1", "trap.j2", "trap.j3")])
 
 ####### comparing models
 # If you leave this function empty, it searches at all objects with class 'mark'
@@ -111,10 +166,14 @@ fm.c.0 <- mark( closed_df, model.parameters = )
 ms <- collect.models()
 # view 
 ms
+# What do these results tell us?
+# Answer:
+# 
+
 # if we need to remove some from the list 
 #ms <- remove.mark( ms, c(1,3))
 # if we wanted to model average results
-ma <- model.average(ms,"p")
+# ma <- model.average(ms,"p")
 # Model averaging methods follow those in Burnham and Anderson (2002, Chpt 4)#
 # CIs are estimated using the Delta-method. 
 # Note that MARK can fail to adequately count the number of parameters in a #
@@ -126,99 +185,37 @@ ma <- model.average(ms,"p")
 # Answer:
 #
 
+# What about our 'Closed' model? ------------
+c.pr.c <- process.data( c_df, model = 'Closed',
+                      groups = c("sex", "o.sites" ) )
+summary( c.pr.c)
+#Now we do step 2. make design data:
+c.ddl.c <- make.design.data( c.pr.c ) 
+#step 4
+fm.c <- mark( c.pr.c, c.ddl.c, 
+                 model.parameters = list( p = sex.sage, c = sex.sage, f0 = dot ))
+# View results
+fm.c$results$derived
+
+
+# Additional options
 # fixing parameters
-p.time.fixed=list(formula=~time,fixed=list(time=c(2011,2018),value=0))
+#p.time.fixed=list(formula=~time,fixed=list(time=c(2011,2018),value=0))
 
 # You can set values to defaults if needed by:
 #model0 <- mark( data, model.parameters = list(p=list(default = 0.9)))
 
-# multi-season models ----------
-# We start with the famous Cormack-Jolly-Seber (CJS) model #
-# The model has two components: (1) a submodel for apparent survival (phi),
-# and (2) a submodel for detection (p). See chpt 10 of Powell and Gale for #
-# model details. 
-# This model requires a single survey per Primary season, with #
-# mortality allowed in between.
-##########################################################################
-# Model fit and evaluation -----------------------------------------------
-# We start with goodness of fit (GoF) outlined by Duarte et al. 2018 #
 
 #########################################################################
-##### Summarizing model output ##############
-#define the model that you want output for:
-fm <- 
-# The individual elements can be extracted using list notation. For example, 
-#the data frame of the β parameters:
-fm$results$beta
-#beta estimates:
-coefs(fm)
-# To view all of the real parameters with standard errors, use summary
-summary( fm, se = TRUE )
-# Estimate partial prediction plots for predictors with 95% CIs not overlapping zero:
-# Start by creating our datasets to predict over
-# how many values do we use:
-n <- 100
-# Use the observed values to define our range:
-cheatgrass <- seq( min( closeddf[,"cheatgrass"]),max( closeddf[,"cheatgrass"]),
-                   length.out = n )
-# what are the min max times:
-closeddf %>% select( time.j1, time.j2, time.j3 ) %>% 
-  summarise_all(list(min, max))
-#use them to define your bounds:
-Time <- round(seq( 0, 360, length.out = n ),0)
-#standardize predictors:
-cheat.std <- scale( cheatgrass )
-time.std <- scale( Time )
-#combine standardized predictors into a new dataframe to predict partial relationship
-# for abundance submodel:
-abundData <- data.frame( sagebrush = 0, cheatgrass = cheat.std )
-#predict partial relationship:
-pred.cheat <- predict( fm.closed, type = "state", newdata = abundData, 
-                       appendData = TRUE )
-#view
-head( pred.cheat ); dim( pred.cheat )
-# now for detection
-detData <- data.frame( obsv = factor(c("tech.1", "tech.1","tech.1", "tech.1"), 
-                                     levels = c("tech.1", "tech.2","tech.3", "tech.4") ), 
-                       time = time.std )
-#predict partial relationship:
-pred.time <- predict( fm.closed, type = "det", newdata = detData, 
-                      appendData = TRUE )
-
-# create plot for ecological submodel:
-cheatp <- cbind( pred.cheat[,c("Predicted", "lower", "upper") ], cheatgrass ) %>%
-  # define x and y values
-  ggplot(., aes( x = cheatgrass, y = Predicted ) ) + 
-  #choose preset look
-  theme_bw( base_size = 15 ) +
-  # add labels
-  labs( x = "Cheatgrass (%)", y = "Relative abundance" ) +
-  # add band of confidence intervals
-  geom_smooth( aes(ymin = lower, ymax = upper ), 
-               stat = "identity",
-               size = 1.5, alpha = 0.5, color = "grey" ) +
-  # add mean line on top
-  geom_line( size = 2 ) 
-#view
-cheatp
-# How do you interpret this relationship?
+# Summarizing results
+# Plot some partial prediction plots
 # Answer:
 
 ############################################################################
 ################## Save your data and workspace ###################
 # Save workspace:
-save.image( "CountResults.RData" )
+save.image( "MarkResultsRMark.RData" )
 
-#save the plot objects you need for your presentation
-#Cheatgrass x abundance plot:
-tiff( 'Data/CheatXAbund.tiff',
-      height = 10, width = 12, units = 'cm', 
-      compression = "lzw", res = 400 )
-#call the plot
-cheatp
-#end connection
-dev.off()
-
-########## End of saving section ##################################
+######### End of saving section ##################################
 
 ############# END OF SCRIPT #####################################
