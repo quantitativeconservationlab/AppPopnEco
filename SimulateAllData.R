@@ -53,10 +53,10 @@ library( wiqid )
 ###################################################################
 #### Load or create data -----------------------------------------
 # set directory where your data are:
-datadir <- "C:/Users/jencruz/Google Drive/QCLabShared/Data/"
+datadir <- "C:/Users/jencruz/Google Drive/QCLabShared/Data/Habitat/NCA/"
 
 # load NCA polygon
-NCA <-  st_read( paste( datadir, "NCA/GIS_NCA_IDARNGpgsSampling/BOPNCA_Boundary.shp", 
+NCA <-  st_read( paste( datadir, "GIS_NCA_IDARNGpgsSampling/BOPNCA_Boundary.shp", 
         sep = "" ), quiet = TRUE )
 #quick plot
 ggplot( NCA ) + geom_sf( aes( geometry = geometry ) )

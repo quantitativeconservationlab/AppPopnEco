@@ -25,7 +25,7 @@ rm( list = ls() )
 getwd()
 
 # Start by installing the MARK program (which Rmark will talk to):
-#MARK is freely available software that was written by Dr. Gary White  #
+# MARK is freely available software that was written by Dr. Gary White  #
 # and can be installed from:
 # http://www.phidot.org/software/mark/index.html
 
@@ -130,7 +130,7 @@ sex.site <- list( formula = ~sex + o.sites  -1 )
 # Now we are ready for step 4: run our first model:
 # The parameter specifications are used with the mark argument model.parameters 
 #to define the model:
-fm.sage <- mark( c.pr, c.ddl, 
+fm.sage <- RMark::mark( c.pr, c.ddl, 
           # the Huggins model has two response parameters: p = prob of capture
           #c = probability of recapture. We assign formulas to each submodel:
           model.parameters = list( p = sex.sage, c = sex.sage ))
