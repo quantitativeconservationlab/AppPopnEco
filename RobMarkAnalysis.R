@@ -1,5 +1,32 @@
+#######################################################################
+#######################################################################
+##     This script was created by Dr. Jen Cruz as part of            ##
+##            the Applied Population Ecology Class                  ###
+##                                                                   ##  
+## Here we import our cleaned data for 2011 for single season capture-##
+#  recapture analysis for Piute ground squirrels at the NCA.         ##
+##                                                                   ##
+# 20 sites were randomly selected for trapping over three days, after #
+# three days of pre-baiting. This approach is meant to increase       #
+# trappability, but may not avoid trap-happiness.                     #
+# Trapping occurred over multiple years but tags used for marking     #
+# individuals were temporary, so they lasted during the primary season#
+# but not between seasons.                                            # 
+#######################################################################
+
+##### Set up your workspace and load relevant packages -----------
+# Clean your workspace to reset your R environment. #
+rm( list = ls() )
+# Check that you are in the right project folder
+getwd()
+
+#install packages
 install.packages( "R2ucare" )
+#load packages
+library( tidyverse )
+library( RMark )
 library( R2ucare )
+
 ## end of package load ###############
 ###################################################################
 #### Load or create data -----------------------------------------
@@ -19,9 +46,12 @@ head( preddf ); dim( preddf )
 #### End of data load -------------
 ####################################################################
 ##### Ready data for analysis --------------
-
 # We need to turn sex to factor 
 open_df$sex <- factor( open_df$sex )
+#convert sites to factor
+open_df$o.sites <- factor( open_df$o.sites)
+#convert year to factor
+open_df$year <- factor( open_df$year )
 
 ### Analyze data ------------------------------------------
 # We are now ready to perform our analysis. Model options available in RMark
@@ -36,7 +66,62 @@ open_df$sex <- factor( open_df$sex )
 # model details. 
 # This model requires a single survey per Primary season, with #
 # mortality allowed in between.
+
+
+# The function mark is a convenience function that calls 5 other
+# functions that do the following:
+# 1. process.data 
+# 2. make.design.data 
+# 3. make.mark.model 
+# 4. run.mark.model
+# 5. summary.mark
+
+# However, as you saw in Laake, Rexstad (2008) we can also manipuate each #
+# step independently. 
+# We start with step 1: process.data
+# We need to specify the model type
+o.pr <- process.data( open_df, model = 'Huggins',
+                      #and how many groups are in our data
+                      groups = c("sex", "o.sites", "year" ) )
+summary( o.pr)
+#Now we do step 2. make design data:
+o.ddl <- make.design.data( o.pr ) 
+# we have already incorporated predictors into our dataframe so we don't alter
+# our ddl here
+# Check that it worked as we expected:
+o.ddl
+
+# Now we define the formula of the submodels that we are interested in:
+# Starting with the M[0] or M[.] or intercept-only model:
+dot <- list( formula = ~1 )
+# For detection we are interested in sex differences 
+sex <- list( formula = ~ sex -1 )
+sex.year <- list( formula = ~ sex  + year  -1 )
+sex.site <- list( formula = ~ sex + o.sites  -1 )
+
+fm.dot <- mark( o.pr, o.ddl, 
+                model.parameters = list( p = dot, c = dot ))
+fm.sex  <- mark( o.pr, o.ddl, 
+                  model.parameters = list( p = sex, c = sex ))
+# Now we run our competing model:
+fm.sex.site  <- mark( o.pr, o.ddl, 
+                  model.parameters = list( p = sex.site, c = sex.site ))
+fm.sex.year <- mark( o.pr, o.ddl, 
+                     model.parameters = list( p = sex.year, c = sex.year ))
+
+# View results
+fm.site$results$derived
+
 ##########################################################################
+####### comparing models
+# If you leave this function empty, it searches at all objects with class 'mark'
+# in the workspace and collates them into the ms object. 
+ms <- collect.models()
+# view 
+ms
+# What do these results tell us?
+# Answer:
+# 
 
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
