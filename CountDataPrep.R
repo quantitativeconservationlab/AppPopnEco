@@ -137,7 +137,7 @@ opendf %>% group_by( year, o.sites ) %>%
 # We create our closeddf:
 closeddf <- opendf %>% 
   #filter only rows for desired year:
-  dplyr::filter( year == 2009 ) 
+  dplyr::filter( year == 2008 ) 
 
 ################################################################
 ##########    save relevant data and workspaces     ###########

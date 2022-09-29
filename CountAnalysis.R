@@ -3,7 +3,7 @@
 ##     This script was created by Dr. Jen Cruz as part of            ##
 ##            the Applied Population Ecology Class                  ###
 ##                                                                   ##  
-## Here we import our cleaned data for 2009 for the point count      ##
+## Here we import our cleaned data for a single year of point count  ##
 #  observations for Piute ground squirrels at the NCA and run a      ##
 ## closed population N-mixture analysis. The model is hierarchical    #
 #  with : (1) an ecological submodel linking abundance to             #
@@ -229,7 +229,7 @@ timep <- cbind( pred.time[,c("Predicted", "lower", "upper") ], Time ) %>%
   #choose preset look
   theme_bw( base_size = 15 ) +
   # add labels
-  labs( x = "Time (mins pass 6:00am)", y = "Relative abundance" ) +
+  labs( x = "Time (mins pass 6:00am)", y = "Probability of Occupancy" ) +
   # add band of confidence intervals
   geom_smooth( aes(ymin = lower, ymax = upper ), 
                stat = "identity",
