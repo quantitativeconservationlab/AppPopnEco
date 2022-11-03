@@ -95,7 +95,7 @@ y.closed <- table( closed_df$o.sites, closed_df$ch )
 #turn to matrix
 class( y.closed ) <- "matrix"
 dim(y.closed)
-
+head(y.closed)
 #we need a matrix of zeros (if not sampled) and ones (if sampled) #
 # with rows = J (repeat surveys) and  cols = observed capture histories (ch):
 o2y <- matrix( data = 1, nrow = J, ncol = CH )
@@ -117,7 +117,7 @@ crPiFun.t <- function(p) {
 }
 # To allow for p to vary by J survey we also need a covariate that represents 
 # each survey ID to be specified as an obsCov
-jMat <- matrix( 1:3, M, J, byrow = TRUE )
+jMat <- matrix( as.character(1:3), M, J, byrow = TRUE )
 
 #Now define cell probabilities for M[b] for CH = 7:
 crPiFun.b <- function(p) { 
@@ -135,7 +135,7 @@ crPiFun.b <- function(p) {
 # Remember that there are limitations to the models that you can fit #
 # for example, you cannot fit an M[b,t] model 
 # we create a behavior covariate same as we did for the Jmat
-bMat <- matrix( c("Naive", "Naive", "Wise"), M, J, byrow = TRUE )
+bMat <- matrix( c("Naive", "Wise", "Wise"), M, J, byrow = TRUE )
 
 #define unmarked dataframe for M[t] and M[o] for single season
 umf.2011.Mt <- unmarkedFrameMPois( y = y.closed,
@@ -211,8 +211,7 @@ modSel( closedmodels )
 # What does it suggest: 
 # Answer:
 #
-# We can assume temporary emigration among J surveys but not births or deaths#
-# so we cannot really use our multi-season data in unmarked
+
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
 # We rely on unmarked options for boostrap goodness-of-fit option in #
@@ -232,12 +231,20 @@ fitstats <- function(fm) {
   return(out)
 }
 # the fitstats function is also available via the AHMbook package
-(gof.Mb.full.closed <- parboot( Mb.full.closed, fitstats, nsim = 1000,
+(gof.Mb.full.closed <- parboot( Mb.full.closed, fitstats2, nsim = 1000,
                                 report = 1) )
 
 # What do this results suggest? 
 # Answer: 
 # 
+
+#The last column on that table is actually meant to be the Bayesian p value
+# estimate so that values <0.1 and >0.9 are actually signs of bad fit. 
+# This suggests that our model is doing poorly. What else could you do 
+# to improve model fit?
+
+# Answer: 
+#
 
 #########################################################################
 ##### Summarizing model output ##############
