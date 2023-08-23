@@ -99,14 +99,14 @@ c_df$cheatgrass <- scale( c_df$cheatgrass )
 # 4. run.mark.model
 # 5. summary.mark
 
-# However, as you saw in Laake, Rexstad (2008) we can also manipuate each #
+# However, as you saw in Laake, Rexstad (2008) we can also manipulate each #
 # step independently. 
 # We start with step 1: process.data
 # We need to specify the model type
 c.pr <- process.data( c_df, model = 'Huggins',
                       #and how many groups are in our data
                       groups = c("sex", "o.sites" ) )
-summary( c.pr)
+summary( c.pr )
 #Now we do step 2. make design data:
 c.ddl <- make.design.data( c.pr ) 
 # we have already incorporated predictors into our dataframe so we don't alter
@@ -135,7 +135,7 @@ fm.sage <- RMark::mark( c.pr, c.ddl,
           #c = probability of recapture. We assign formulas to each submodel:
           model.parameters = list( p = sex.sage, c = sex.sage ))
 #Step 5: summary of results:
-summary( fm.sage)
+summary( fm.sage )
 #view coefficients:
 fm.sage$results$beta
 #view abundance estimates

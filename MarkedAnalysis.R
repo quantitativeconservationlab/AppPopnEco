@@ -246,6 +246,10 @@ fitstats <- function(fm) {
 # Answer: 
 #
 
+# Actually tried to run teh gmultmix() version with NB and had an error
+# this thread suggests is the package and not the data who are at fault:
+# https://groups.google.com/g/unmarked/c/g0Q_Mq8RDw4?pli=1
+
 #########################################################################
 ##### Summarizing model output ##############
 # Estimate partial prediction plots for predictors with 95% CIs not overlapping zero:

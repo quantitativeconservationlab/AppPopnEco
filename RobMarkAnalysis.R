@@ -26,6 +26,7 @@ install.packages( "visreg" )
 install.packages( "pbkrtest" )
 install.packages( "MuMIn")
 install.packages( "DHARMa")
+
 #load packages
 library( tidyverse )
 library( RMark )
@@ -71,7 +72,7 @@ open_df$year <- factor( open_df$year )
 # marks only last for each season. We therefore rely on single season #
 # models and include year and site as groups to account for potential #
 # differences in detection among those. Note that ideally we would be #
-# able to incorporate random effects since we are repeatedly sampling the #
+# able to incorporate random effects since we are repeatedly sampled the #
 # same sites each year. Further we would ideally estimate abundance and detection #
 # submodels in the same model, as these parameters are correlated with each other.
 # Since we cannot do that in MARK we start by modeling detection only and #

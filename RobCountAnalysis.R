@@ -199,6 +199,7 @@ fm.notrend <- pcountOpen( #lambda formula for initial abundance:
 
 # View model results:
 fm.notrend
+#AIC 38637
 
 # starting with an intercept only version of the Gompertz
 fm.gom0 <- pcountOpen( #lambda formula for initial abundance:
@@ -212,6 +213,9 @@ fm.gom0 <- pcountOpen( #lambda formula for initial abundance:
   se = FALSE, #useful for the first run
   immigration = FALSE, data = umf, 
   control = list( trace = TRUE, REPORT = 1) )
+#view
+fm.gom0
+#AIC = 27694
 
 # Now let's simulate population growth for the following years using a #
 # Gompertz model adapted to discrete time steps. #
@@ -240,16 +244,17 @@ fm.gompertz <- pcountOpen( #lambda formula for initial abundance:
 
 # View model results:
 fm.gompertz
+#AIC = 27079
 
 # Next we rerun the model with se=TRUE and use the values of the previous #
 # run, as initial values for the new model
 #define coefficients from the previous model as initial values for the next run
-inits <- coef( fm.gompertz )
+inits <- coef( fm.2 )
 #run model
 fm.2 <- pcountOpen( lambdaformula = ~1, 
                     gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT,
                     omegaformula = ~1,  pformula = ~1  + time + I(time)^2, 
-                    dynamics = 'gompertz', K = 600, se = TRUE, data = umf,
+                    dynamics = 'gompertz', K = 2000, se = TRUE, data = umf,
                     control = list( trace = TRUE, REPORT = 1), starts = inits )
 
 #define which model you want to view
@@ -295,7 +300,7 @@ confint( fm, type = 'det' )
 # observed test statistic divided by the mean of the simulated test statistics #
 
 #let's start by defining which model we want to test:
-fm <- fm.notrend
+fm <- fm.2
 # Let's compute observed chi-square, assess significance, and estimate c-hat
 gof.boot <- Nmix.gof.test( fm, nsim = 500, print.table = TRUE )
 #view
