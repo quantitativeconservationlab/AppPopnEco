@@ -68,22 +68,19 @@ whiskerplot( mr, parameters = c( "z" ) )
 # the relationship with day of survey as a way of demonstrating #
 # the process
 head( detdf)
-
-# what are the min max days:
-detdf %>% select( jday1 , jday1 , jday1  ) %>% 
+#how many predictions do we want?
+n <- 100
+# what are the min max wind days:
+detdf %>% select( wind1 , wind2 , wind3  ) %>% 
   summarise_all( list(min, max ), na.rm = TRUE )
-
-detdf %>% select( jday1 , jday1 , jday1  ) %>% 
-  summarise_all( unique, na.rm = TRUE )
-
 #use these to define your bounds
-jday.pred <- seq( 0, 360, length.out = 360 )
-jday.std <- scale( jday.pred )
+wind.pred <- seq( 0, 35, length.out = n )
+wind.std <- scale( wind.pred )
 
 #extract detection intercept and relevant coefficient 
-fixeddet <- cbind( mr$sims.list$int.p, mr$sims.list$alpha[,3] )
+fixeddet <- cbind( mr$sims.list$int.p, mr$sims.list$alpha )
 #estimate predicted detection
-preddet <- plogis( fixeddet %*% t( cbind( rep(1,360), jday.std ) ) )
+preddet <- plogis( fixeddet %*% t( cbind( rep(1,n), wind.std ) ) )
 #calculate mean abundance
 mdet <- apply( preddet, MARGIN = 2, FUN = mean )
 #calculate 95% Credible intervals for abundance
@@ -92,27 +89,27 @@ CIdet <- apply( preddet, MARGIN = 2, FUN = quantile,
 
 #create dataframe combining all predicted values for plotting
 p.pred <- data.frame( mdet, t(CIdet),
-                     jday.pred, jday.std )
+                     wind.pred, wind.std )
 #view
 head( p.pred); dim( p.pred )
 #rename predicted abundance columns
 colnames(p.pred )[1:4] <- c(  "Mean", "lowCI", "highCI",
-                             "SurveyDay" )
+                             "Wind" )
 
 
 #plot
-ggplot( data = p.pred, aes( x = SurveyDay, y = Mean ) ) +
+ggplot( data = p.pred, aes( x = Wind, y = Mean ) ) +
   theme_classic() +
   ggtitle( "Great Horned Owl: Effects on Detection Probability" ) + # change this for different owl species
   ylab( "Probability of Detection" ) +
-  xlab( "" ) +
+  xlab( "Wind speed (miles/hr)" ) +
   theme( legend.position = "top",
          legend.title = element_blank(),
          text = element_text( size = 16 ),
          axis.line = element_line( size = 1.3 ),
          panel.spacing = unit(1, "lines"),
          strip.background = element_blank() ) +
-  geom_line( size = 1.2 ) +
+  geom_line( linewidth = 1.2 ) +
   geom_ribbon( alpha = 0.3, aes( ymin = lowCI , ymax = highCI ) ) 
 
 
@@ -225,6 +222,10 @@ ggplot( data = occ.preds, aes( x = Raw, y = Mean,
               scales = "free_x", ncol = length(psilabs),
               strip.position = "bottom" )#
 
+######### save relevant output   ###########################
 
+# How would you save one of your figures?
+# Answer:
+# 
 
 ################ end of script  ##############################

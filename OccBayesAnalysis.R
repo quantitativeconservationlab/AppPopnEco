@@ -122,7 +122,7 @@ X <- habdf[,c("shrub", "ah") ]
 #standardise these predictors
 X <- apply( X, MARGIN = 2, FUN = scale )
 #view
-head( X)
+head( X )
 
 #Now explore detection predictors 
 #view
@@ -132,22 +132,20 @@ str(detdf)
 #create a vector of each predictor for easy plotting
 w <- as.vector( as.matrix(detdf[ ,c("wind1", "wind2", "wind3") ]))
 c <- as.vector( as.matrix(detdf[ ,c("cloud1", "cloud2", "cloud3") ]))
-j <- as.vector( as.matrix(detdf[ ,c("jday1", "jday2", "jday3") ]))
 
 #derive a histogram
 hist( w )
+hist( c )
 #what does this tell you about which predictors we should use?
-
+#what else could be relevant that we are ignoring?
+#Answer:
+# 
 
 #we create a siteXsurvey matrix for each one and standardise them
 #wind
 wind_sc <- scale( detdf[ ,c("wind1", "wind2", "wind3") ])
-#jday
-jday_sc <- scale( detdf[ ,c("jday1", "jday2", "jday3") ])
-
 #replace missing values with mean 0
 wind_sc[is.na(wind_sc)] <- 0
-jday_sc[is.na(jday_sc)] <- 0
 
 
 #number of sites X year
@@ -206,12 +204,8 @@ cat( "
       }
       
       #priors for fixed coefficients in detection submodel:
-      for( a in 1:A ){ #loop over number of predictors
-      
-        alpha.p[ a ] ~ dnorm( 0, 0.05 ) 
-      
-      } #a
-     
+        alpha.p ~ dnorm( 0, 0.05 ) 
+
       #Define the ecological model for occupancy:
       for( i in 1:I ){  #loop over I number of sites
             
@@ -235,9 +229,7 @@ cat( "
             # using a logit function
             logit( p[ i, j ] ) <- int.p +
                 #fixed predictors
-                alpha.p[ 1 ] * wind_sc[ i, j ] + # wind
-                alpha.p[ 2 ] * cloud_sc[ i, j ] + #cloud cover 
-                alpha.p[ 3 ] * jday_sc[ i, j ] #day of year
+                alpha.p * wind_sc[ i, j ]  # wind
             
         #Here we link our observations to the estimated, true occupancy, z,
         # from our ecological model above
@@ -285,7 +277,7 @@ zst <- rep(1, I )
 #number of occupancy predictors
 B <- 2
 #number of detection predictors
-A <- 3
+A <- 1
 #create initial values to start the algorithm
 inits <- function(){ list( beta.psi = rnorm( B ),
                            alpha.p = rnorm( A ) 
@@ -298,8 +290,6 @@ str( great.data <- list( y_obs = y_obs, #observed occupancy for each species
                        #site level predictors
                        ,X = as.matrix( X )
                        ,wind_sc = wind_sc
-                       ,cloud_sc = cloud_sc
-                       ,jday_sc = jday_sc
 ) )                
 
 #call JAGS and summarize posteriors:
