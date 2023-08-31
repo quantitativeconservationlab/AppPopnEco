@@ -10,18 +10,19 @@
 ## In this script we prepare the data that we will use              ###
 ## to estimate site occupancy of Piute ground squirrels.             ## 
 ##  Site locations were randomly selected within the study area     ###
-## ensuring that they were at least 500 m apart for independence     ##
-## Sampling occurred during 2007-2018, with 3 repeat surveys each year #
-## surveys were searches for presence of individuals, active burrows  #
+## ensuring that they were at least 800 m apart from each other     ##
+## Sampling occurred during 2007-2018, with 3 repeat surveys each year. #
+## Field surveys consisted of active searches for individuals, active burrows  #
 ## or fresh scats within a 200m radius of the site center point.     ##
-##  There were 4 observers, each randomly assigned to each survey.   ##
-##  A subsample of sites were also surveyed with point count         ##
-##  and trapping, which we will use for later analyses of            ##
+##  Four technicians worked on the project. The sites visited each   ##
+### year were randomly assigned to an observer.                      ##
+##  A subsample of sites were also surveyed with walking transects   ##
+##  and live-trapping, which we will use for later analyses of      ##
 ## abundance. Time of day was noted during the count surveys.        ##
 ##                                                                   ##
-##   For our occupancy data we create two data summaries:            ##
-##   1) for year 1 only so that we can use closed population models.  #
-##   2) for all years as a classic open ROBUST DESIGN.               ##
+## For our occupancy data we create two data summaries:            ##
+## 1) for one year to demonstrate use of closed population models.    #
+## 2) for all years to asssess temporal changes using aROBUST DESIGN. #              ##
 ##                                                                   ## 
 ## Predictors:                                                       ##
 # We use landcover data from the National Geospatial Data Asset (NGDA).#

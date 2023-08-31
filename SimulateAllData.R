@@ -411,7 +411,7 @@ B <- M <- matrix( data = 0, nrow = Io, ncol = T-1 )
 # Cheatgrass is an invasive species that increases the likelihood of # 
 # more frequent fires in the system. Here we assume that more cheatgrass # 
 # will increase the probability of the population becoming extinct #
-# For our first season, we assumed that sites with cheatgrass >15 % start #
+# For our first season, we assumed that sites with cheatgrass > 15 % start #
 # out empty of ground squirrels
 Odf[,1] <- ifelse( grassdf[ ,yrnames[1]] > 15, 0, 1)
 # let's randomly draw abundances for the 1st year for those occupied sites:
@@ -426,7 +426,7 @@ Ndf[,1] <- round( runif( n = Io, 1, 500 )) * Odf[,1]
 #intercept: 
 int.phi <- 1
 # coefficient for cheatgrass
-beta.phi <- -4
+beta.phi <- -3
 # relationship with phi with a logit link
 logit.phi <- int.phi + ( beta.phi * grass.std[ ,yrnames ] )
 # let's plot the relationship for one year to see what it looks like:
@@ -447,7 +447,7 @@ plague <- 0.02
 #is related to an increase in sagebrush #
 #Let's define that relationship:
 #Intercept
-int.gamma <- -3
+int.gamma <- -1
 #coefficient for sagebrush
 beta.gamma <- 2
 #relationship with colonization probability with a logit link:
@@ -640,9 +640,9 @@ head( obsdf )
 
 # Let's define the relationship between sagebrush and detection:
 #intercept as the logit of mean detection:
-int.p.occ <- qlogis( 0.7 )
+int.p.occ <- qlogis( 0.3 )
 #coefficient for sagebrush[i,t]
-beta.p.occ <- -0.3
+beta.p.occ <- 0.0
 #combine
 logit.p <- int.p.occ + ( beta.p.occ * pred.std[, 'sagebrush'] ) 
 # let's plot the relationship to see what it looks like:
@@ -657,7 +657,8 @@ ggplot( ., aes( x = sagebrush, y = y) ) +
 
 hist( preddf$sagebrush)
 #now let's add the observer effect:
-obsefs <- data.frame( id = observers, effect = rnorm(n = 4, mean = 0, sd = 1 ) )
+obsefs <- data.frame( id = observers, 
+                    effect = rnorm(n = 4, mean = 0, sd = 1 ) )
 #calculate the mean probability of detection for each observer
 plogis( int.p.occ + obsefs$effect )
 obsefs
@@ -692,7 +693,7 @@ times.std <- wiqid::standardize( as.matrix( obsdf[ ,timecols] ) )
 head( times.std )
 #define our relationship with time of day as a quadratic:
 #intercept is logit of mean detection
-int.p.count <- qlogis( 0.7 )
+int.p.count <- qlogis( 0.4 )
 #coefficients for quadratric relationship with time of day
 beta.p.count <- c( -0.2, -0.4 )
 logit.p.count <- int.p.count + ( beta.p.count[1] * times.std[, timecols] ) +
