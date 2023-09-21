@@ -1,11 +1,10 @@
 ###########################################################################
-### This script was developed by Jen Cruz and David Bontrager    ###
-####  for use in the Applied Population Ecology class             ###
-###    
-### Script import results from OccBayesAnalysis.R estimating     ###
-### single season occupancy of owls in Coastal Texas in relation ###
-### to habitat, while accounting for the impacts of wind, cloud    #
-### cover and day of year on detection.                                            #
+### This script was developed by Jen Cruz and David Bontrager         ###
+####  for use in the Applied Population Ecology class                 ###
+###                                                                   ###
+### Script import results from OccBayesAnalysis.R estimating          ###
+### single season occupancy of owls in Coastal Texas in relation      ###
+### to habitat. Here we plot model results                              #
 ###########################################################################
 
 ########### clean workspace and load required packages ####################
@@ -56,7 +55,6 @@ whiskerplot( mr, parameters = c( 'int.psi', 'int.p' ), zeroline = TRUE )
 #derived parameters
 whiskerplot( mr, parameters = c( "psi" ) )
 whiskerplot( mr, parameters = c( "p" ) )
-whiskerplot( mr, parameters = c( "z" ) )
 
 #############################################################
 ######### partial prediction plots #############################
@@ -126,7 +124,7 @@ nicepsilabs <- c( 'Shrub Cover (%)',
                   "Aplomado Habitat Cover (%)" )
 
 #Define function
-estppreds <- function( sl = 100, int,coefs, 
+estppreds <- function( sl = 100, int, coefs, 
                        datadf, labs, nicelabs ){
   # sl: length of predictions
   # int: vector of 1s of sl length
@@ -206,7 +204,7 @@ occ.preds <- estppreds(
 ggplot( data = occ.preds, aes( x = Raw, y = Mean, 
          fill = as.factor(Year) ) ) +
   theme_classic() +
-  ggtitle( "Barn owls: Habitat Effects on Occupancy" ) + 
+  ggtitle( "Great Horned owls: Habitat Effects on Occupancy" ) + 
   ylab( "Probability of Occupancy" ) +
   xlab( "" ) +
   theme( legend.position = "top", 

@@ -63,7 +63,7 @@ barndf <- read.csv( file = paste( datadir,
 ####################################################################
 ##### Ready data for analysis --------------
 ### select which owl you want to analyse data for #
-# Here we choose Great horned owls. For homework use Barn owls. 
+# Here we choose Great horned owls. 
 #start by viewing detection dataframe
 head( greatdf ); tail( greatdf); dim( greatdf )
 # What does this tell you about the detection data?
@@ -147,7 +147,7 @@ wind_sc <- scale( detdf[ ,c("wind1", "wind2", "wind3") ])
 #replace missing values with mean 0
 wind_sc[is.na(wind_sc)] <- 0
 
-
+#set general parameters
 #number of sites X year
 I <- max( detdf$siteyear_id )
 #number of replicate surveys each year

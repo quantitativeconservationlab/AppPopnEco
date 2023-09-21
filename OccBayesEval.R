@@ -1,3 +1,12 @@
+###########################################################################
+### This script was developed by Jen Cruz and David Bontrager    ###
+####  for use in the Applied Population Ecology class             ###
+###    
+### Script import results from OccBayesAnalysis.R estimating     ###
+### single season occupancy of owls in Coastal Texas in relation ###
+### to habitat.                                            #
+## This script calculates Bayesian p values and plots model residuals ##
+###########################################################################
 
 ####### load relevant packages ###
 library( tidyverse ) #dataframe manipulations.
@@ -32,8 +41,10 @@ head( evaldf )
 #add likelihood values
 
 # Define function to calculate Model deviances 
-CalcDevs <- function( lik_yobs = mr$sims.list$lik_yobs,
-                      lik_yhat = mr$sims.list$lik_yhat ){
+CalcDevs <- function( lik_yobs, lik_yhat )
+  {
+  #lik_yobs: likelihood of observed data
+  #lik_yhat: likelihood of predicted data 
   
   #assign temporary objects
   ll_yobs_i <-  ll_yhat_i <-  matrix( nrow = N, ncol = I )
@@ -68,22 +79,25 @@ CalcDevs <- function( lik_yobs = mr$sims.list$lik_yobs,
   
 } # close function
 
+# Run function to calculate deviances
+ModDevs <- CalcDevs(lik_yobs = mr$sims.list$lik_yobs,
+                    lik_yhat = mr$sims.list$lik_yhat )
 #######################################################################
 # Calculate Bayesian p-value as mean number of times that Deviance of #
 # observed data was greater than the deviance of predicted model #####
 #########################################################################
-
+head( ModDevs)
 Baypvalue <- mean( ModDevs$Dev_obs > ModDevs$Dev_hat )
 print( Baypvalue )
 
 #plot Bayesian p value for the model
-par( mfrow = c(1,1), cex.axis = 1.5, mar=c(3,4,2,2) )
+par( mfrow = c(1,1), cex.axis = 1.3, mar=c(4,4,4,4) )
 plot( ModDevs$Dev_obs, ModDevs$Dev_hat, 
       main = paste0( "Bayesian P value = ", 
                      round( Baypvalue, 3 ) ), 
       xlab = "Deviance of observed data", 
       ylab = "Deviance of predicted data", tcl = 0.2, 
-      cex.lab = 1.5, bty = "l"  ) 
+      bty = "l"  ) 
 abline( 0, 1, col = 'black', lwd = 3 )
 
 #############       END OF SCRIPT         ###########################
