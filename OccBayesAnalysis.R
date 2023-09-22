@@ -20,8 +20,13 @@
 ########### clean workspace and load required packages ####################
 ###########################################################################
 
+# For this analysis you will need to download JAGs to your #
+# computer, which you can source here:
+# https://sourceforge.net/projects/mcmc-jags/files/
+
 # Install new packages from "CRAN" repository. # 
-install.packages( "jagsUI" ) #actually a collection of packages 
+# install one of the packages that talks to JAGs:
+install.packages( "jagsUI" ) 
 
 ####### load relevant packages ###
 library( dplyr ) #dataframe manipulations.

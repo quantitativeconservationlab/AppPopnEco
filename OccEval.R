@@ -6,13 +6,13 @@
 ## Here we evaluate model fit and plot model output.                 ##
 # After we conduct an analysis we get results for the single model.   #
 # If we ran model selection, we get a top model. But is it any good?  #
-# We cannot know until we evaluate it! A model may over or under-fit  #
-# the data and thus be a poor representation of the system we are trying #
-# to understand. Too often ecologists stop when they finish running   #
-# their analyses. This is very dangerous.                             #
-# Part of the issue is the difficulties in evaluating a model. This is #
-# particularly the case for binomial models, as several traditional   #
-# approaches that are suitable with Gaussian distributions do not work #
+# A model may over or under-fit the data and thus be a poor           #
+# representation of the system we are trying to understand.           #
+#  Too often ecologists stop when they finish running                 #
+# their analyses. This is dangerous!                                  #
+# Part of the issue is that evaluating models is hard. This is        #
+# particularly so for Binomial models, as traditional approaches      #
+#  that are suitable with Gaussian distributions do not work          #
 # with binomial responses.                                            #
 # There is therefore no silver bullet. We recommend exploring multiple #
 # metrics as a way of confirming that your model is fit for purpose.  #
