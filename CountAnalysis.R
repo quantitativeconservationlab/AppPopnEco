@@ -46,11 +46,13 @@ head( closeddf ); dim( closeddf )
 # Let's define our unmarked dataframe:
 # Start by defining which columns represent the response (counts):
 umf <- unmarkedFramePCount( y = as.matrix( closeddf[ ,c("count.j1", "count.j2", "count.j3")]),
-                          # Define predictors at the site level:
-                          siteCovs = closeddf[ ,c("sagebrush", "cheatgrass")],
-                          # Define predictors at the survey level as a list:
-                          obsCovs = list( obsv = closeddf[ ,c("observer.j1", "observer.j2", "observer.j3")],
-                                          time = closeddf[ ,c('time.j1', 'time.j2', 'time.j3') ] ) ) 
+                    # Define predictors at the site level:
+                  siteCovs = closeddf[ ,c("sagebrush", "cheatgrass")],
+                  # Define predictors at the survey level as a list:
+                  obsCovs = list( obsv = closeddf[ ,c("observer.j1", "observer.j2", "observer.j3")],
+                      time = closeddf[ ,c('time.j1', 'time.j2', 'time.j3') ],
+                      time2 = cbind( (closeddf$time.j1)^2, (closeddf$time.j2)^2, 
+                                     (closeddf$time.j3)^2 ) ) ) 
 
 # View summary of unmarked dataframe:
 summary( umf )
@@ -58,17 +60,21 @@ summary( umf )
 sc <- apply( siteCovs(umf), MARGIN = 2, FUN = scale )
 # We replace the predictors in our unmarked dataframe with the scaled values:
 siteCovs( umf ) <- sc
-#now for observation-level predictors:
-osc <- as.vector(scale( obsCovs(umf)[2] ))
+#now for time:
+timesc <- as.vector(scale( obsCovs(umf)[2] ))
 #replace with scaled values:
-obsCovs(umf)[2] <- osc
+obsCovs(umf)[2] <- timesc
+time2sc <- as.vector(scale( obsCovs(umf)[3] ))
+#replace with scaled values:
+obsCovs(umf)[3] <- time2sc
+
 #recheck
 summary( umf )
 ### end data prep -----------
 ### Analyze data ------------------------------------------
 # We are now ready to perform our analysis. We start with a full model:
-fm.closed <- pcount( ~ 1 + obsv + time
-                   ~ 1 + sagebrush + cheatgrass, 
+fm.closed <- pcount( ~ 1 + obsv + time + time2
+                   ~ 1 + sagebrush +cheatgrass, 
                    #Define the maximum possible abundance
                    #during the primary occasion
                     K = 1000,
@@ -176,52 +182,22 @@ residqq( fm.closed, type = 'observation' )
 # Start by creating our datasets to predict over
 # how many values do we use:
 n <- 100
-# Use the observed values to define our range:
-cheatgrass <- seq( min( closeddf[,"cheatgrass"]),max( closeddf[,"cheatgrass"]),
-                   length.out = n )
 # what are the min max times:
 closeddf %>% select( time.j1, time.j2, time.j3 ) %>% 
   summarise_all(list(min, max))
 #use them to define your bounds:
 Time <- round(seq( 0, 360, length.out = n ),0)
-#standardize predictors:
-cheat.std <- scale( cheatgrass )
+Time2 <- Time^2
 time.std <- scale( Time )
-#combine standardized predictors into a new dataframe to predict partial relationship
-# for abundance submodel:
-abundData <- data.frame( sagebrush = 0, cheatgrass = cheat.std )
-#predict partial relationship:
-pred.cheat <- predict( fm.closed, type = "state", newdata = abundData, 
-                          appendData = TRUE )
-#view
-head( pred.cheat ); dim( pred.cheat )
+time2.std <- scale( Time2 )
 # now for detection
 detData <- data.frame( obsv = factor(c("tech.1", "tech.1","tech.1", "tech.1"), 
               levels = c("tech.1", "tech.2","tech.3", "tech.4") ), 
-                                     time = time.std )
+                                     time = time.std, time2 = time2.std )
 #predict partial relationship:
 pred.time <- predict( fm.closed, type = "det", newdata = detData, 
                            appendData = TRUE )
 
-# create plot for ecological submodel:
-cheatp <- cbind( pred.cheat[,c("Predicted", "lower", "upper") ], cheatgrass ) %>%
-  # define x and y values
-  ggplot(., aes( x = cheatgrass, y = Predicted ) ) + 
-  #choose preset look
-  theme_bw( base_size = 15 ) +
-  # add labels
-  labs( x = "Cheatgrass (%)", y = "Relative abundance" ) +
-  # add band of confidence intervals
-  geom_smooth( aes(ymin = lower, ymax = upper ), 
-               stat = "identity",
-               size = 1.5, alpha = 0.5, color = "grey" ) +
-  # add mean line on top
-  geom_line( size = 2 ) 
-#view
-cheatp
-# How do you interpret this relationship?
-# Answer:
-#
 # create plot for detection submodel:
 timep <- cbind( pred.time[,c("Predicted", "lower", "upper") ], Time ) %>%
   # define x and y values
@@ -243,16 +219,6 @@ timep
 ################## Save your data and workspace ###################
 # Save workspace:
 save.image( "CountResults.RData" )
-
-#save the plot objects you need for your presentation
-#Cheatgrass x abundance plot:
-tiff( 'Data/CheatXAbund.tiff',
-      height = 10, width = 12, units = 'cm', 
-      compression = "lzw", res = 400 )
-#call the plot
-cheatp
-#end connection
-dev.off()
 
 ########## End of saving section ##################################
 

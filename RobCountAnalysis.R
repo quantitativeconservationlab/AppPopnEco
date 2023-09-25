@@ -199,7 +199,6 @@ fm.notrend <- pcountOpen( #lambda formula for initial abundance:
 
 # View model results:
 fm.notrend
-#AIC 38637
 
 # starting with an intercept only version of the Gompertz
 fm.gom0 <- pcountOpen( #lambda formula for initial abundance:
@@ -209,13 +208,12 @@ fm.gom0 <- pcountOpen( #lambda formula for initial abundance:
   #omega is carrying capacity (K)
   omegaformula = ~1,
   pformula = ~1,  #
-  dynamics = 'gompertz', K = 1000,
+  dynamics = 'gompertz', K = 500,
   se = FALSE, #useful for the first run
   immigration = FALSE, data = umf, 
   control = list( trace = TRUE, REPORT = 1) )
 #view
 fm.gom0
-#AIC = 27694
 
 # Now let's simulate population growth for the following years using a #
 # Gompertz model adapted to discrete time steps. #
@@ -232,7 +230,7 @@ fm.gompertz <- pcountOpen( #lambda formula for initial abundance:
   #exp( gamma * (1 - log(N[i,t-1] + 1) ) / log(omega + 1) )
   dynamics = 'gompertz', 
   # #Define the maximum possible abundance
-  K = 600, #Note here it's a lot higher than the preset value
+  K = 500, #Note here it's a lot higher than the preset value
   # doesn't calculate standard errors, which makes it run faster:
   se = FALSE, #useful for the first run
   # set to true if you want to separate migration from survival:
@@ -244,21 +242,20 @@ fm.gompertz <- pcountOpen( #lambda formula for initial abundance:
 
 # View model results:
 fm.gompertz
-#AIC = 27079
 
 # Next we rerun the model with se=TRUE and use the values of the previous #
 # run, as initial values for the new model
 #define coefficients from the previous model as initial values for the next run
-inits <- coef( fm.2 )
+inits <- coef( fm.gompertz )
 #run model
-fm.2 <- pcountOpen( lambdaformula = ~1, 
+fm.gompertz <- pcountOpen( lambdaformula = ~1, 
                     gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT,
                     omegaformula = ~1,  pformula = ~1  + time + I(time)^2, 
                     dynamics = 'gompertz', K = 2000, se = TRUE, data = umf,
                     control = list( trace = TRUE, REPORT = 1), starts = inits )
 
 #define which model you want to view
-fm <- fm.2
+fm <- fm.gompertz
 #view results
 summary(fm)
 #backtransform parameter estimates

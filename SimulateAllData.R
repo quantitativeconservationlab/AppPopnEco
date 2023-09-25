@@ -403,9 +403,6 @@ head( pred.std )
 head( occdf )
 #create dataframes to store true occupancy and abundance values:
 Odf <- Ndf <- matrix( data = 0, nrow = Io, ncol = T )
-# create dataframes to store number of births and immigrants, starting with #
-# the second season
-B <- M <- matrix( data = 0, nrow = Io, ncol = T-1 )
 
 # Some of our sites are going to be empty but can be colonized in the future. #
 # Cheatgrass is an invasive species that increases the likelihood of # 
@@ -414,8 +411,6 @@ B <- M <- matrix( data = 0, nrow = Io, ncol = T-1 )
 # For our first season, we assumed that sites with cheatgrass > 15 % start #
 # out empty of ground squirrels
 Odf[,1] <- ifelse( grassdf[ ,yrnames[1]] > 15, 0, 1)
-# let's randomly draw abundances for the 1st year for those occupied sites:
-Ndf[,1] <- round( runif( n = Io, 1, 500 )) * Odf[,1]
 # We then define the dynamic occupancy process for the following seasons:
 # If a site is occupied, O, it has a high probability of remaining #
 # occupied, phi, except if cheatgrass increases too much, or if the plague  # 
@@ -460,10 +455,24 @@ ggplot( gammadf, aes( x = x, y = y) ) +
   labs( x = "Sagebrush cover (%)", y = "Probability of colonization") +
   theme_bw(base_size = 15) + geom_point( size = 2 )
 
-# Now let's simulate population growth for the following years using a #
-# Gompertz model adapted to discrete time steps. #
-# See: Cruz et al. 2013 PLOS ONE 8(9):e73544 for example.
 
+# Estimate occupancy for the following time periods in a loop:
+# Occupancy is the product of the colonization and extinction #
+# processes derived above:
+for( t in 1:(T-1) ){
+   #We calculate probability of remaining occupied, phi, by subtracting the 
+  # plague probability:
+  Phi <- plogis( logit.phi[,t] ) - plague
+  Phi <- ifelse( Phi < 0, 0, Phi )
+  # We estimate colonization probability gamma:
+  Gamma <- plogis( logit.gamma[,t] )
+  # we derive occupancy
+  Odf[ ,t+1] <- rbinom( n = Io, size = 1, prob = ( ( Odf[,t] * Phi ) +
+                ( (1 - Odf[,t]) * Gamma ) ) )
+  
+}  
+###### end occupancy simulation ########
+########### estimating abundance from counts ################
 # Female Piute ground squirrels give birth to an average of 5-10 young #
 # Reproduction is affected by food availability early in the #
 # season when they come out of hibernation, with colder Feb temperatures #
@@ -472,83 +481,65 @@ ggplot( gammadf, aes( x = x, y = y) ) +
 # Survival is also affected by really hot temperatures, with individuals #
 # unable to forage when temperatures are too hot. So we expect a #
 # negative relationship between survival and max T in Apr-May #
-#let's define these relationships
 # Lastly, survival is expected to be higher in sites with more sagebrush #
-int.psi <- log(1.1) #this intercept is the log( mean growth rate )
+# create dataframes to store number the survivors and gained immigrants, starting with #
+# the second season
+
+#abundance rate for year one
+lambda <- 30
+#abundance in year one
+Ndf[,1] <- rpois(Io, lambda )
+
+#population growth rate (r)
+int.gamma <- log(1.3) #this intercept is the log( mean growth rate )
 #coefficients for sagebrush, feb.minT, aprmay.maxT:
-beta.psi <- c(  0.1, 0.4, -0.3 )  
+beta.gamma <- c(  0.3, 0.5, -0.8 )  
 #create coefficient vector
-coefs.psi <-  as.vector( c( int.psi, beta.psi ) )
+coefs.gamma <-  as.vector( c( int.gamma, beta.gamma ) )
 #define predictor matrix
-psi.preds <- as.matrix( cbind( rep(1, dim(pred.std)[1] ),
+gamma.preds <- as.matrix( cbind( rep(1, dim(pred.std)[1] ),
           pred.std[ ,c("sagebrush", "Feb.minT", "AprMay.maxT") ] ) )
 # matrix multiply coefficients by predictors to estimate logit.psi:
-log.psi <- psi.preds %*% coefs.psi
+log.gamma <- gamma.preds %*% coefs.gamma 
 
 # let's plot partial relationships to see what they look like:
-for( p in 2:length( coefs.psi) ){
-  psidf <- data.frame( x = preddf[ ,prednames[p] ],
+for( p in 2:length( coefs.gamma) ){
+  gammadf <- data.frame( x = preddf[ ,prednames[p] ],
                      #calculate partial prediction values
-    y = exp( int.psi + ( coefs.psi[p] *     
+    y = exp( int.gamma + ( coefs.gamma[p] *     
                       as.vector( pred.std[ ,prednames[p] ] ) ) ) )
 #plot partial prediction plots
-a <- ggplot( psidf, aes( x = x, y = y ) ) +
+a <- ggplot( gammadf, aes( x = x, y = y ) ) +
   labs( x = prednames[p], y = "Population growth rate" ) +
   theme_bw(base_size = 15) + geom_point( size = 2 )
 print(a )
 }
 
 # Turn growth rate into a siteXyear matrix:
-log.psi.df <- cbind( preddf[ ,c("o.sites", "yearname") ], log.psi )
-log.psi.df <- spread( data = log.psi.df, key = yearname, value = log.psi )
-head( log.psi.df )  
+log.gamma.df <- cbind( preddf[ ,c("o.sites", "yearname") ], log.gamma )
+log.gamma.df <- spread( data = log.gamma.df, key = yearname, value = log.gamma )
+head( log.gamma.df )  
+
 #view historgram of growth rates:
-hist(exp(log.psi))
+hist(exp(log.gamma))
 
-# Estimate occupancy and abundance for the following time periods in a loop:
+#equilibrium abundance (K)
+omega <- 60
+
+#"gompertz" is a modified version of the Gompertz-logistic model, 
+#N[i,t] = N[i,t-1]*exp(gamma*(1-log(N[i,t-1]+1)/log(omega+1)))
+# Estimate abundance for the following time periods in a loop:
 for( t in 1:(T-1) ){
-  # Now we can derive occupancy as the product of the colonization and extinction #
-  # processes derived above:
-  #We calculate probability of remaining occupied, phi, by subtracting the 
-  # plague probability:
-  Phi <- plogis( logit.phi[,t] ) - plague
-  Phi <- ifelse( Phi < 0, 0, Phi )
-  # We estimate colonization probability gamma:
-  Gamma <- plogis( logit.gamma[,t] )
-  # we derive occupancy 
-  Odf[ ,t+1] <- rbinom( n = Io, size = 1, prob = ( ( Odf[,t] * Phi ) + 
-                ( (1 - Odf[,t]) * Gamma ) ) )
-
-  # Abundance, N[t+1] is determined by a Gompertz process driven by site #
-  # occupancy, O[t+1], abundance in the previous season, N[t], population #
-  # growth rate, Psi[t] and density-dependence, with Poisson error. #
-  # In addition, potential migrants may be added to a site depending on 
-  # a binomial process driven by a random draw of dispersers and the probability #
-  # that the site was colonized that year, Gamma[t]. 
-
-  #Estimate the population growth rate for that site, that year, Psi, by adding
-  # a density-dependent term when the site was occupied in the previous season:
-  Psi <- exp( log.psi.df[ ,yrnames[t]] + ( -0.05 * log( Ndf[,t] + 1 ) ) )
-
-  # Determine the number of survivors, based on current site occupancy, Odf[t+1], #
-  # previous abundance, N[t], and population growth rate, Psi[t]. The later takes #
-  # into account covariates and reflects births and deaths in the population:
-  S <- rpois( n = Io, lambda = Ndf[,t] * Psi * Odf[,t+1] )
-
-  # Define potential migrants, M, as the product of a binomial process drawing #
-  # from a random draw of potential dispersers ranging from 1 to 20, and #
-  # the probability of colonization for that year for each site: #
-  M <- rbinom( Io, size = round(runif( Io, min = 1, max = 20 )), prob = Gamma )
-
-  # Calculate abundance as the sum of survivors, S, and migrants, M:
-  Ndf[ ,t+1 ] <- S + M 
-
+  #Ndf[ ,t+1 ] <- rpois( Io, exp(log.psi.df[,t]) )
+  Ndf[ ,t+1 ] <-  round( Ndf[ ,t]  * exp( log.gamma.df[,t] * 
+                (1 -log( Ndf[ ,t] + 1 ) /log( omega + 1 ) ) ), 0)
 } #end of loop
 
 #check output
 Ndf
 head( Odf )
 rowSums( Odf )
+
 #######
 #### turn matrices to sf dataframes to save them and to long formats: ######
 # True occupancy dataframe
@@ -693,7 +684,7 @@ times.std <- wiqid::standardize( as.matrix( obsdf[ ,timecols] ) )
 head( times.std )
 #define our relationship with time of day as a quadratic:
 #intercept is logit of mean detection
-int.p.count <- qlogis( 0.4 )
+int.p.count <- qlogis( 0.6 )
 #coefficients for quadratric relationship with time of day
 beta.p.count <- c( -0.2, -0.4 )
 logit.p.count <- int.p.count + ( beta.p.count[1] * times.std[, timecols] ) +
@@ -718,10 +709,9 @@ dim(obsdf );dim(Ndf.long); dim( logit.p.count)
 # we can now populate count observations:
 for( j in 1:J ){
   for( i in 1:dim(obsdf)[1]){
-    # observed counts are a Poisson process dependent on detection probability #
-    # and true abundance:
-    obsdf[ i,onames[3+j] ] <- rpois( n = 1, lambda = plogis( logit.p.count[i,j] ) * 
-                                  Ndf.long[ i,"N" ] )
+    # observed counts are derived from a binomial distribution:
+  obsdf[ i,onames[3+j] ] <- rbinom(n=1, Ndf.long[ i,"N" ], 
+                                   p = plogis( logit.p.count[i,j] ))
   }}
 head( obsdf,30 )
 
@@ -730,7 +720,7 @@ head( obsdf,30 )
 obs_df <- obsdf
 head( obs_df );dim(obs_df )
 obs_df[ which(obs_df$counted == "no" ), c(onames[4:6],timecols)] <- NA
-
+head( obs_df)
 ######
 #### Detection for Trapping ######
 # Individuals are only marked with semipermanent tags so that #

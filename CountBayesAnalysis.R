@@ -9,7 +9,7 @@
 #  with : (1) an ecological submodel linking abundance to             #
 ## environmental predictors at each site; (2) an observation submodel #
 ## linking detection probability to relevant predictors.             ##
-##  We ran our analysis in Bayesian.                                  ##
+##  We rerun previous single season model from unmarked in JAGS Bayesian.##
 # Abundance is expected to be higher in sites with more sagebrush     #
 # and lower in those with more cheatgrass.                            #                                        #
 # Detection may be related to observer effects and to time of day     #
@@ -20,9 +20,6 @@
 rm( list = ls() )
 # Check that you are in the right project folder
 getwd()
-
-#install relevant packages
-install.packages("jagsUI")
 
 # load packages:
 library( tidyverse ) 
@@ -60,7 +57,8 @@ oidx <- grep( "obs", colnames(closeddf), value = FALSE)
 yidx <- grep( "count.j", colnames( closeddf ), value = FALSE)
 #now use those indices to automatically select correct columns and scale
 time_sc <- scale( closeddf[ ,tidx] )
-
+#we want a quadratic term for time also
+time2_sc <- scale( (closeddf[ ,tidx])^2 )
 # for observers, we will include them as a random intercept instead
 # of a fixed effect so we convert them to a number to represent index
 obvs <- as.matrix( closeddf[,oidx] )
@@ -97,12 +95,13 @@ cat( "
       
       #priors for detection coefficients:
       #define as a slightly informative prior
-      alpha ~ dnorm( 0, 0.1 ) T(-7, 7 )
-
+      for( a in 1:A){
+        alpha[ a ] ~ dnorm( 0, 0.2 ) T(-7, 7 )
+      }
       #priors for abundance coefficients:
       for( b in 1:B ){
         #define as a slightly informative prior
-        beta[ b ] ~ dnorm( 0, 0.1 ) T(-7, 7 )
+        beta[ b ] ~ dnorm( 0, 0.2 ) T(-7, 7 )
       }
       
       #prior for abundance model intercept 
@@ -111,22 +110,33 @@ cat( "
     
     # ecological model of abundance
     for( i in 1:I ){
+      #relative abundance modelled as a Poisson distribution 
       N[ i ] ~ dpois( lambda[ i ] )
-      log( lambda[ i ] ) <- int.lam + 
+      
+      #linking abundance rate to predictor
+      log( lambda[ i ] ) <- #intercept for abundance 
+                          int.lam + 
+                 # fixed effects of sagebrush and cheatgrass
                         inprod( beta, XI[ i, ]  )
-    
+    }
       #observation model
+     for( i in 1:I ){  
       for( j in 1:J ){
-        logit( p[i,j] ) <- int.det + 
+        #model for probability of detection
+        logit( p[i,j] ) <- #intercept for detection 
+                          int.det + 
                   #random intercept for observer effect
                   eps.det[ obvs[i,j] ] +
-                  #fixed effects
-                  alpha * time[i,j]
-        #observed counts
+                  #quadratic effect of time of day
+                  alpha[1] * time[i,j] +
+                  alpha[2] * time2[i,j]
+                  
+        #observed counts distributed as a Binomial:
         y_obs[ i, j ] ~ dbin( p[i,j], N[i] )  
                   
-        #for model evaluation we calculate Chi-squared discrepancy
-        #expected abundance
+        #Model evaluation: We calculate Chi-squared discrepancy
+        
+        #start with expected abundance
         eval[i,j] <- p[i,j] * N[i]
         #compare vs observed counts
         E[i,j] <- pow( ( y_obs[i,j] - eval[i,j] ), 2 ) /
@@ -134,15 +144,17 @@ cat( "
         # Generate replicate data and compute fit stats
         #expected counts
         y_hat[ i, j ] ~ dbin( p[i,j], N[i] )
+        #compare vs expected counts
         E.new[i,j] <- pow( ( y_hat[i,j] - eval[i,j] ), 2 ) /
                   ( eval[i,j] + 0.001 )
       
     } #close J
     } #close I
         
-    #derived estimate of fit
+    #derived estimates of model fit
     fit <- sum( E[,] )
     fit.new <- sum( E.new[,] )
+    
     } #model close
      
      ", fill = TRUE )
@@ -172,7 +184,7 @@ Nst[which(Nst== 0 )] <- 1
 #how many ecological predictors that are fixed effects
 B <- dim(XI)[2]
 #how many detection predictors that are fixed effects
-A <- 1
+A <- 2
 #define initial parameter values
 inits <- function(){ list( beta = rnorm( B ),
                            alpha = rnorm( A ),
@@ -186,6 +198,7 @@ str( win.data <- list( y_obs = as.matrix( closeddf[ ,yidx] ),
                        XI = XI,
                        #observation predictors:
                        time = time_sc,
+                       time2 = time2_sc,
                        obvs = obvs
 ) )
 
@@ -237,12 +250,13 @@ cat( "
       
       #priors for detection coefficients:
       #define as a slightly informative prior
-      alpha ~ dnorm( 0, 0.1 ) T(-7, 7 )
-
+      for( a in 1:A){
+        alpha[a] ~ dnorm( 0, 0.2 ) T(-7, 7 )
+      }
       #priors for abundance coefficients:
       for( b in 1:B ){
         #define as a slightly informative prior
-        beta[ b ] ~ dnorm( 0, 0.1 ) T(-7, 7 )
+        beta[ b ] ~ dnorm( 0, 0.2 ) T(-7, 7 )
       }
       
       #prior for abundance model intercept 
@@ -271,7 +285,8 @@ cat( "
                   #random intercept for observer effect
                   eps.det[ obvs[i,j] ] +
                   #fixed effects
-                  alpha * time[i,j]
+                  alpha[1] * time[i,j] +
+                  alpha[2] * time2[i,j]
         #observed counts
         y_obs[ i, j ] ~ dbin( p[i,j], N[i] )  
                   
@@ -360,12 +375,13 @@ cat( "
       
       #priors for detection coefficients:
       #define as a slightly informative prior
-      alpha ~ dnorm( 0, 0.1 ) T(-7, 7 )
-
+      for( a in 1:A ){
+        alpha[a] ~ dnorm( 0, 0.2 ) T(-7, 7 )
+      }
       #priors for abundance coefficients:
       for( b in 1:B ){
         #define as a slightly informative prior
-        beta[ b ] ~ dnorm( 0, 0.1 ) T(-7, 7 )
+        beta[ b ] ~ dnorm( 0, 0.2 ) T(-7, 7 )
       }
       
       # site suitability prior
@@ -392,7 +408,9 @@ cat( "
                   #random intercept for observer effect
                   eps.det[ obvs[i,j] ] +
                   #fixed effects
-                  alpha * time[i,j]
+                  alpha[1] * time[i,j] +
+                  alpha[2] * time2[i,j] 
+                  
         #observed counts
         y_obs[ i, j ] ~ dbin( p[i,j], N[i] )  
                   
@@ -450,22 +468,7 @@ mean( m3$mean$fit ) / mean( m3$mean$fit.new )
 #plot Bayesian p value
 plot( x = m3$sims.list$fit, y = m3$sims.list$fit.new )
 
-###### end m2 ########
-#did it work?################
-#We look at rough plots before we save our model results 
-mr <- m1
-
-mco <- mcmcOutput(m2)
-diagPlot(mco)
-plot(m1)
-summary(mco)
-
-whiskerplot( mr, parameters = "eps.det" , zeroline = TRUE)
-whiskerplot( mr, parameters = "alpha", zeroline = TRUE )
-whiskerplot( mr, parameters = "beta", zeroline = TRUE )
-colnames(XI)
-whiskerplot( mr, parameters = "N", zeroline = TRUE )
-
+###### end m3 ########
 
 
 ############################################################################

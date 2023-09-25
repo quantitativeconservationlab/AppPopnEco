@@ -26,8 +26,14 @@ load( "CountBayesResults.RData" )
 ################################################################################
 #################### viewing model results ####################################
 ##################################################################################
+#which model should we use moving forward? 
+#answer: 
+
+#get summary from three models:
+summary(m1); summary(m2); summary(m3)
+
 #define model results to plot
-mr <- m1
+mr <- m2
 
 ############## trace plots ############
 #plot( mr ) #plots traces and posterior densities for all parameters
@@ -42,18 +48,21 @@ traceplot( mr, parameters = c( 'alpha') )
 #for abundance
 traceplot( mr, parameters = c( 'int.lam') )
 traceplot( mr, parameters = c( 'beta') )
+traceplot( mr, parameters = c( 'eps.i') )
 
 ############## whisker plots #############
 par( mfrow = c( 1,1 ), ask = F , mar = c(3,4,2,2) )
 #for detection
 #fixed effects for detection
 whiskerplot( mr, parameters = c( 'int.det', 'alpha' ) , zeroline = TRUE )
-#random intercept for detection
+#random intercept for observer effect
 whiskerplot( mr, parameters = c( "eps.det" ) )
 #for abundance
 par( mfrow = c( 1,1 ), ask = F , mar = c(3,4,2,2) )
 #fixed effects for abundance
 whiskerplot( mr, parameters = c( 'int.lam', 'beta' ) , zeroline = TRUE )
+#random intercept for site
+whiskerplot( mr, parameters = c( "eps.i" ) )
 
 #derived parameters
 whiskerplot( mr, parameters = c( "p" ) )
@@ -75,8 +84,9 @@ ggplot( fitdf, aes( x = fit, y= fit.new ) ) +
   ylab( "Discrepancy predicted data" ) +
   geom_abline(intercept = 0, slope = 1)
 
-#calculate fit ratio
+#calculate chat:
 mean( mr$mean$fit ) / mean( mr$mean$fit.new )
+
 
 ######### end model evaluation ######################################
 ##################################################################
@@ -165,10 +175,11 @@ closeddf %>% select( time.j1, time.j2, time.j3 ) %>%
 #use them to define your bounds:
 Time <- round(seq( 0, 360, length.out = n ),0)
 time.std <- scale( Time )
+time2.std <- scale( Time^2 )
 #extract relevant fixed coefficient for detection submodel results
 fixeddet <- cbind( mr$sims.list$int.det, mr$sims.list$alpha )
 #estimate predicted detection
-preddet <- plogis( fixeddet %*% t( cbind( int, time.std ) ) )
+preddet <- plogis( fixeddet %*% t( cbind( int, time.std, time2.std ) ) )
 #calculate mean abundance
 mdet <- apply( preddet, MARGIN = 2, FUN = mean )
 #calculate 95% Credible intervals for abundance
@@ -177,7 +188,7 @@ CIdet <- apply( preddet, MARGIN = 2, FUN = quantile,
 
 #create dataframe combining all predicted values for plotting
 detdf <- data.frame( mdet, t(CIdet),
-                       time.std, Time )
+                       time.std, time2.std, Time )
 #view
 head( detdf); dim( detdf)
 #rename predicted abundance columns

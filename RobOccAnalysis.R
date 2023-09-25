@@ -41,8 +41,7 @@ head( robdf ); dim( robdf )
 ##### Ready data for analysis ----------------------------
 # What predictors do we think drive colonization, extinction and # 
 # detection of Piute ground squirrels at the NCA? #
-# We build on some of our findings from the single-season occupancy #
-# model. We found that cheatgrass and sagebrush were both potentially #
+# We think that cheatgrass and sagebrush are both potentially        #
 # important to occupancy. Breaking those relationships down into the #
 # components of our dynamic process we predict that:
 # Extinction:

@@ -124,20 +124,28 @@ opendf %>% group_by( year, o.sites ) %>%
   # make a different plot for each year:
   facet_wrap( ~year, ncol = 3, scales = "free" )
 
-# What do we see? What is happening to our abundances, but also to #
-# our site occupancy? Does this relate to our previous occupancy analysis?
+#how are counts changing at each site
+opendf %>% group_by( year, o.sites ) %>%
+  mutate( maxc = max( count.j1, count.j2, count.j3 ) ) %>%
+  dplyr::select( o.sites, year, maxc ) %>% ungroup() %>%
+  # we group data by year
+  ggplot(., aes(color = as.factor(o.sites), x = year, y = maxc )) +
+  theme_bw( base_size = 15 ) + 
+  geom_line()
+  
+# What do we see? What is happening to site abundances, but also to #
+# site occupancy? 
 # Answers:
 #
 
 # We need to choose a year for our single season (closed population) analysis.
-# Based on the plots I will choose 2009. It has good spread of abundance #
-# values and only 15 sites are empty. I think later years may require #
+# Based on the plots I will choose 2008. I think later years may require #
 # a zero-inflated Poisson model to account for all the empty sites #
 
 # We create our closeddf:
 closeddf <- opendf %>% 
   #filter only rows for desired year:
-  dplyr::filter( year == 2008 ) 
+  dplyr::filter( year == 2012 ) 
 
 ################################################################
 ##########    save relevant data and workspaces     ###########
@@ -152,7 +160,7 @@ write.csv( closeddf, paste( getwd(),"/Data/closed_counts.csv", sep = "" ),
 
 # if you want to save your workspace, because you are still #
 # working through it use the following command:
-#save.image( "CountPrepWorkspace.RData" )
+save.image( "CountPrepWorkspace.RData" )
 ########## End of saving section ##################################
 ################## Save your data and workspace ###################
 
