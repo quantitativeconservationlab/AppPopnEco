@@ -28,6 +28,8 @@ load( "SurvivalResults.RData" )
 ##################################################################################
 #define model results to plot
 mr <- m1
+#Total number of iterations ran:
+N <- mr$mcmc.info$n.samples
 
 #extract summary results
 summary( mr )

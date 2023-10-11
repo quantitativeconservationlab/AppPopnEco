@@ -295,7 +295,7 @@ str( win.data <- list( y_obs = y_obs, #observed survival
 
 #call JAGS and summarize posteriors:
 m1 <- autojags( win.data, inits = inits, params, modelname, #
-                 n.chains = nc, n.thin = 20,  n.burnin = 50000,
+                 n.chains = 3, n.thin = 20,  n.burnin = 50000,
                  iter.increment = 20000, max.iter = 500000, 
                  Rhat.limit = 1.02,
                  save.all.iter = FALSE, parallel = TRUE ) 
