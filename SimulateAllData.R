@@ -486,14 +486,15 @@ for( t in 1:(T-1) ){
 # the second season
 
 #abundance rate for year one
-lambda <- 30
+lambda <- 8
+omega <- 0.8
 #abundance in year one
 Ndf[,1] <- rpois(Io, lambda )
 
 #population growth rate (r)
-int.gamma <- log(1.3) #this intercept is the log( mean growth rate )
+int.gamma <- log(5) #this intercept is the log( mean growth rate )
 #coefficients for sagebrush, feb.minT, aprmay.maxT:
-beta.gamma <- c(  0.3, 0.5, -0.8 )  
+beta.gamma <- c(  1.3, 0.5, -0.8 )  
 #create coefficient vector
 coefs.gamma <-  as.vector( c( int.gamma, beta.gamma ) )
 #define predictor matrix
@@ -518,21 +519,23 @@ print(a )
 # Turn growth rate into a siteXyear matrix:
 log.gamma.df <- cbind( preddf[ ,c("o.sites", "yearname") ], log.gamma )
 log.gamma.df <- spread( data = log.gamma.df, key = yearname, value = log.gamma )
+log.gamma.df <- log.gamma.df %>% 
+  dplyr::select( -o.sites )
 head( log.gamma.df )  
 
 #view historgram of growth rates:
 hist(exp(log.gamma))
 
-#equilibrium abundance (K)
-omega <- 60
+S <- G <- matrix( NA, Io, T-1)
 
-#"gompertz" is a modified version of the Gompertz-logistic model, 
-#N[i,t] = N[i,t-1]*exp(gamma*(1-log(N[i,t-1]+1)/log(omega+1)))
 # Estimate abundance for the following time periods in a loop:
 for( t in 1:(T-1) ){
   #Ndf[ ,t+1 ] <- rpois( Io, exp(log.psi.df[,t]) )
-  Ndf[ ,t+1 ] <-  round( Ndf[ ,t]  * exp( log.gamma.df[,t] * 
-                (1 -log( Ndf[ ,t] + 1 ) /log( omega + 1 ) ) ), 0)
+  # Ndf[ ,t+1 ] <-  round( Ndf[ ,t]  * exp( log.gamma.df[,t] * 
+  #               (1 -log( Ndf[ ,t] + 1 ) /log( omega + 1 ) ) ), 0)
+  S[,t] <- rbinom( Io, Ndf[,t], omega )
+  G[,t] <- rpois( Io, exp( log.gamma.df[,t+1] ) )
+  Ndf[ ,t+1 ] <- S[,t] + G[,t]
 } #end of loop
 
 #check output

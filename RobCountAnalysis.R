@@ -133,6 +133,7 @@ osc <- as.vector(scale( obsCovs(umf)[2] ))
 obsCovs(umf)[2] <- osc
 #recheck
 summary( umf )
+
 ### end data prep -----------
 ########################################################################
 ### Analyze data ------------------------------------------
@@ -185,7 +186,7 @@ fm.notrend <- pcountOpen( #lambda formula for initial abundance:
   #no trend
   dynamics = 'notrend', 
   #Define the maximum possible abundance
-  K = 400,
+  K = 40,
   # don't calculate standard errors, which makes it run faster:
   se = TRUE, #useful for the first run
   # set distribution as Poisson:
@@ -200,62 +201,60 @@ fm.notrend <- pcountOpen( #lambda formula for initial abundance:
 # View model results:
 fm.notrend
 
-# starting with an intercept only version of the Gompertz
-fm.gom0 <- pcountOpen( #lambda formula for initial abundance:
+# We now run a dynamic count model from Dail-Madsen (2011) model. #
+fm.dyn0 <- pcountOpen( #lambda formula for abundance in year 1 only:
   lambdaformula = ~1, 
-  #gamma is instantaneous population growth rate (r)
+  #gamma is recruitment rate
   gammaformula = ~1, 
-  #omega is carrying capacity (K)
-  omegaformula = ~1,
-  pformula = ~1,  #
-  dynamics = 'gompertz', K = 500,
-  se = FALSE, #useful for the first run
-  immigration = FALSE, data = umf, 
-  control = list( trace = TRUE, REPORT = 1) )
-#view
-fm.gom0
-
-# Now let's simulate population growth for the following years using a #
-# Gompertz model adapted to discrete time steps. #
-# See: Cruz et al. 2013 PLOS ONE 8(9):e73544 for example.
-fm.gompertz <- pcountOpen( #lambda formula for initial abundance:
-  lambdaformula = ~1, 
-  #gamma is instantaneous population growth rate (r)
-  gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT, 
-  #omega is carrying capacity (K)
+  #omega is survival probability 
   omegaformula = ~1,
   #detection formula:
-  pformula = ~1  + time + I(time)^2,  #
-  #density-dependent population growth: N[i,t] = N[i,t-1] * 
-  #exp( gamma * (1 - log(N[i,t-1] + 1) ) / log(omega + 1) )
-  dynamics = 'gompertz', 
-  # #Define the maximum possible abundance
-  K = 500, #Note here it's a lot higher than the preset value
-  # doesn't calculate standard errors, which makes it run faster:
-  se = FALSE, #useful for the first run
-  # set to true if you want to separate migration from survival:
-  immigration = FALSE,
-  # provide data
+  pformula = ~1,  #
+  #upper bound of discrete integration. Should be higher than the maximum 
+  #observed count and high enough that it does not affect #
+  #parameter estimates 
+  K = 40,
+  #for the first run turn off calculation of standar errors
+  se = TRUE, 
+  #more complicated models allow immigration to be split 
+  # from births # we don't enable that here
+  immigration = FALSE, 
+  #here you provide your unmarked dataframe
   data = umf, 
-  # set control parameters so that you can see progress:
+  control = list( trace = TRUE, REPORT = 1) )
+#view
+fm.dyn0
+
+# We rerun the model above by adding predictors. 
+# The model is hard to fit so we start with an intercept only version #
+# and we also start without calculating standard errors.#
+fm.dyn <- pcountOpen( #lambda formula for initial abundance:
+  lambdaformula = ~1, 
+  gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT, 
+  omegaformula = ~1,
+  pformula = ~1  + time + I(time)^2,  
+  K = 40, 
+  se = FALSE, 
+  immigration = FALSE,
+  data = umf, 
   control = list( trace = TRUE, REPORT = 1) )
 
 # View model results:
-fm.gompertz
+fm.dyn
 
 # Next we rerun the model with se=TRUE and use the values of the previous #
 # run, as initial values for the new model
 #define coefficients from the previous model as initial values for the next run
-inits <- coef( fm.gompertz )
+inits <- coef( fm.dyn )
 #run model
-fm.gompertz <- pcountOpen( lambdaformula = ~1, 
-                    gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT,
-                    omegaformula = ~1,  pformula = ~1  + time + I(time)^2, 
-                    dynamics = 'gompertz', K = 2000, se = TRUE, data = umf,
-                    control = list( trace = TRUE, REPORT = 1), starts = inits )
+fm.dynSE <- pcountOpen( lambdaformula = ~1, 
+        gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT,
+        omegaformula = ~1,  pformula = ~1  + time + I(time)^2, 
+        K = 40, se = TRUE, data = umf,
+        control = list( trace = TRUE, REPORT = 1), starts = inits )
 
 #define which model you want to view
-fm <- fm.gompertz
+fm <- fm.dynSE
 #view results
 summary(fm)
 #backtransform parameter estimates
@@ -283,9 +282,6 @@ confint( fm, type = 'det' )
 # Answer:
 #
 
-# What would the Dail, Madsen (2011) model look like?
-# Answer:
-#
 #############end full model ###########
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
@@ -296,26 +292,14 @@ confint( fm, type = 'det' )
 # The test also estimates a c-hat measure of overdispersion, as the  #
 # observed test statistic divided by the mean of the simulated test statistics #
 
-#let's start by defining which model we want to test:
-fm <- fm.gompertz
 # Let's compute observed chi-square, assess significance, and estimate c-hat
-gof.boot <- Nmix.gof.test( fm, nsim = 500, print.table = TRUE )
+gof.boot <- Nmix.gof.test( fm, nsim = 100, print.table = TRUE )
 #view
 gof.boot
 # Remember that higher chi-squared values represent worse fit
 
-# What about a comparison of our fitted vs observed values?
-plot(  yy[,1], fitted( fm )[,1] )
-for( j in 2:dim(y)[2]){
-  points( yy[,j], fitted( fm )[,j] )
-}
-# Now use gof checks outlined in Knape et al. 2018 MEE 9:2102-2114
-# We start by estimating overdispersion metrics 
-chat( fm, type = 'marginal' )
-chat( fm, type = 'site-sum' )
-chat( fm, type = 'observation' )
 
-# Plot rq residuals against untransformed numeric predictors. This may help
+#Plot rq residuals against untransformed numeric predictors. This may help
 # detect problems with the functional form assumed in a model
 residcov( fm )
 # What do the plots tell you?
@@ -385,7 +369,7 @@ sagep <- cbind( pred.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %>%
   #choose preset look
   theme_bw( base_size = 15 ) +
   # add labels
-  labs( x = "Sagebrush (%)", y = "Instantaneous growth rate" ) +
+  labs( x = "Sagebrush (%)", y = "Recruitment" ) +
   # add band of confidence intervals
   geom_smooth( aes(ymin = lower, ymax = upper ), 
                stat = "identity",
@@ -395,7 +379,6 @@ sagep <- cbind( pred.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %>%
 #view
 sagep
 # How do you interpret this relationship?
-# Is there a potential threshold beyond which colonization becomes unlikely?
 # Answer:
 #
 minTp <- cbind( pred.minT[,c("Predicted", "lower", "upper") ], minT ) %>%
@@ -404,7 +387,7 @@ minTp <- cbind( pred.minT[,c("Predicted", "lower", "upper") ], minT ) %>%
   #choose preset look
   theme_bw( base_size = 15 ) +
   # add labels
-  labs( x = "Minimum temperature (Feb)", y = "Instantaneous growth rate" ) +
+  labs( x = "Minimum temperature (Feb)", y = "Recruitment" ) +
   # add band of confidence intervals
   geom_smooth( aes(ymin = lower, ymax = upper ), 
                stat = "identity",
@@ -419,7 +402,7 @@ maxTp <- cbind( pred.maxT[,c("Predicted", "lower", "upper") ], maxT ) %>%
   #choose preset look
   theme_bw( base_size = 15 ) +
   # add labels
-  labs( x = "Maximum temperature (Apr-May)", y = "Instantaneous growth rate" ) +
+  labs( x = "Maximum temperature (Apr-May)", y = "Recruitment" ) +
   # add band of confidence intervals
   geom_smooth( aes(ymin = lower, ymax = upper ), 
                stat = "identity",
@@ -439,13 +422,13 @@ save.image( "RobCountResults.RData" )
 
 #save the plot objects you need for your presentation
 #start by calling the file where you will save it
-tiff( 'Data/SageXGam.tiff',
-      height = 10, width = 12, units = 'cm', 
-      compression = "lzw", res = 400 )
-#call the plot
-sagep
-#end connection
-dev.off()
+# tiff( 'Data/SageXGam.tiff',
+#       height = 10, width = 12, units = 'cm', 
+#       compression = "lzw", res = 400 )
+# #call the plot
+# sagep
+# #end connection
+# dev.off()
 
 ########## End of saving section ##################################
 

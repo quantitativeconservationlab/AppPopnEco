@@ -68,6 +68,11 @@ obvs <- structure( obvs, dim = dim( closeddf[,oidx] ), class = "matrix" )
 #number of observers 
 S <- max(obvs, na.rm = TRUE)
 
+#For homework you need to run only one of the three model versions below
+# List your choice here including some reasoning for your choice:
+# Answer:
+#
+ 
 ##########################################################################
 ####### m1 single season N-mixture abundance model    #
 # ecological predictors: cheatgrass and sagebrush #
@@ -204,7 +209,7 @@ str( win.data <- list( y_obs = as.matrix( closeddf[ ,yidx] ),
 
 #call JAGS and summarize posteriors:
 m1 <- autojags( win.data, inits = inits, params, modelname, #
-                n.chains = 5, n.thin = 10, n.burnin = 0,
+                n.chains = 5, n.thin = 10, n.burnin = 20000,
                 iter.increment = 10000, max.iter = 500000, 
                 Rhat.limit = 1.05,
                 save.all.iter = FALSE, parallel = TRUE ) 
@@ -333,7 +338,7 @@ params <- c(  'int.det' #intercept for detection
 
 #call JAGS and summarize posteriors:
 m2 <- autojags( win.data, inits = inits, params, modelname, #
-                n.chains = 5, n.thin = 10, n.burnin = 0,
+                n.chains = 5, n.thin = 10, n.burnin = 20000,
                 iter.increment = 10000, max.iter = 500000, 
                 Rhat.limit = 1.05,
                 save.all.iter = FALSE, parallel = TRUE ) 
@@ -455,7 +460,7 @@ params <- c(  'int.det' #intercept for detection
 )
 #call JAGS and summarize posteriors:
 m3 <- autojags( win.data, inits = inits, params, modelname, #
-                n.chains = 5, n.thin = 10, n.burnin = 0,
+                n.chains = 5, n.thin = 10, n.burnin = 20000,
                 iter.increment = 10000, max.iter = 500000, 
                 Rhat.limit = 1.05,
                 save.all.iter = FALSE, parallel = TRUE ) 

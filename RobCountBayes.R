@@ -256,6 +256,151 @@ m1 <- autojags( win.data, inits = inits, params, modelname, #
 thanks#view results 
 summary(m1)
 plot(m1)
+############################################################################
+##########################################################################
+####### m2 density-dependent N-mixture abundance model    #
+# We extend model 1 to incorporate density dependence
+# ecological predictors: cheatgrass, sagebrush, Feb.minT, AprMay.maxT #
+# detection predictors: time, time^2 and observer as random intercept #
+############################################################################
+############## Specify model in bugs language:  #####################
+sink( "m2.txt" )
+cat( "
+     model{
+     
+      #priors
+      #for detection model: 
+      #define intercept as mean probs:
+      int.det <- log( mean.det / ( 1 - mean.det ) )
+      mean.det ~ dbeta( 4, 4 )
+      
+      #random intercept for observer
+      for( s in 1:S ){
+        eps.det[s] ~ dnorm( 0, pres.det ) T(-7, 7)
+      }
+      #associated variance of random intercepts:     
+      pres.det <- 1/ ( sigma.det * sigma.det )
+      #sigma prior specified as a student t half-normal:
+      sigma.det ~ dt( 0, 2.5, 7 ) T( 0, )
+      
+      #priors for detection coefficients:
+      #define as a slightly informative prior
+      for( a in 1:A ){
+        alpha[ a ] ~ dnorm( 0, 0.5 ) 
+      }
+      #priors for abundance coefficients:
+      for( b in 1:B ){
+        #define as a slightly informative prior
+        beta[ b ] ~ dnorm( 0, 0.5 ) 
+      }
+      
+      #prior for abundance model intercept 
+      int.lam ~ dgamma( 0.01, 0.01 )
+      
+      #density-dependence term
+      gamma ~ dnorm( 0, 0.5 ) 
+      
+    # ecological model of abundance
+    for( i in 1:I ){
+      #Abundance in year 1 is just a Poisson with lambda derived
+      #from maximum counts observed at that site
+       N[ i,1 ] ~ dpois( maxcounts[i] )
+       
+       for( k in 2:K ){
+       
+       #define abundance from a Poisson distribution
+          N[ i, k ] ~ dpois( lambda[ i, k-1 ] )
+          
+        } #close K
+     } #close I
+    
+    #start in year two to allow for density dependence
+      for( t in (I+1):T ){ 
+      
+         #link lambda to fixed effects and a density dependence term
+          log( lambda[ siteid[t], (yearid[t]-1) ] ) <- int.lam +
+                #allow density dependence 
+                gamma * ( N[ siteid[t], ( yearid[t] - 1 ) ] ) +
+                #fixed effects
+                  inprod( beta, X[ t, ]  )
+      }
+    
+    #observation mode  
+      for( t in 1:T ){ #loop over each row of your opendf
+        for( j in 1:J ){ #loop over surveys
+        #model probability of detection
+        logit( p[siteid[t], yearid[t], j ] ) <- int.det + 
+                  #random intercept for observer effect
+                  eps.det[ obvs[t,j] ] +
+                  #quadratic effect of time of day
+                  alpha[1] * time[ t, j ] +
+                  alpha[2] * time2[ t, j ]
+                  
+        #observed counts distributed as a Binomial:
+        y_obs[ t, j ] ~ dbin( p[ siteid[t], yearid[t], j ], 
+                              N[ siteid[t], yearid[t] ] )  
+                  
+    } #close J
+    } #close T
+    
+    } #model close
+     
+     ", fill = TRUE )
+
+sink()
+################ end of model specification  #####################################     
+modelname <- "m2.txt"
+#parameters monitored
+params <- c(  'int.det' #intercept for detection
+              , 'int.lam' #intercept for lamda
+              , 'alpha' #detection coefficients
+              , 'eps.det' #random intercepts in detection
+              , 'sigma.det' #error for random intercept
+              , 'beta' #abundance coefficients
+              , 'gamma' #maximum instantaneous population growth rate (r) 
+              , 'lambda' #abundance rate
+              , 'omega' #equilibrium abundance
+              , 'p' #estimate of detection probability
+              , 'N' #estimates of abundance
+              
+)
+
+#how many ecological predictors that are fixed effects
+B <- 4
+#how many detection predictors that are fixed effects
+A <- 2
+#define initial parameter values
+inits <- function(){ list( beta = rnorm( B ),
+                           alpha = rnorm( A ),
+                           N = as.matrix(Ninits) ) }
+
+#define data that will go in the model
+str( win.data <- list( y_obs = as.matrix( opendf[ ,yidx] ),
+                       #number of sites, surveys, det predictors, and abund preds
+                       I = I, J = J, A = A, B = B, S = S, K= K, T = T,
+                       siteid = opendf$siteid,
+                       yearid = opendf$yearid,
+                       #max counts
+                       maxcounts = maxcounts,
+                       #siteXyear level habitat predictors
+                       X = X[,c("cheatgrass", "sagebrush", "Feb.minT", "AprMay.maxT")],
+                       #observation predictors:
+                       time = time_sc,
+                       time2 = time2_sc,
+                       obvs = obvs
+) )
+
+#call JAGS and summarize posteriors:
+m2 <- autojags( win.data, inits = inits, params, modelname, #
+                n.chains = 5, n.thin = 10, n.burnin = 0,
+                iter.increment = 10000, max.iter = 500000, 
+                Rhat.limit = 1.05,
+                save.all.iter = FALSE, parallel = TRUE ) 
+
+#view results 
+summary(m2)
+plot(m2)
+############################################################################
 
 ################## Save your data and workspace ###################
 # Save workspace:

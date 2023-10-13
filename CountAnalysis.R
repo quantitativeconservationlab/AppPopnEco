@@ -45,13 +45,14 @@ head( closeddf ); dim( closeddf )
 ##### Ready data for analysis --------------
 # Let's define our unmarked dataframe:
 # Start by defining which columns represent the response (counts):
-umf <- unmarkedFramePCount( y = as.matrix( closeddf[ ,c("count.j1", "count.j2", "count.j3")]),
-                    # Define predictors at the site level:
-                  siteCovs = closeddf[ ,c("sagebrush", "cheatgrass")],
-                  # Define predictors at the survey level as a list:
-                  obsCovs = list( obsv = closeddf[ ,c("observer.j1", "observer.j2", "observer.j3")],
-                      time = closeddf[ ,c('time.j1', 'time.j2', 'time.j3') ],
-                      time2 = cbind( (closeddf$time.j1)^2, (closeddf$time.j2)^2, 
+umf <- unmarkedFramePCount( 
+  y = as.matrix( closeddf[ ,c("count.j1", "count.j2", "count.j3")]),
+  # Define predictors at the site level:
+  siteCovs = closeddf[ ,c("sagebrush", "cheatgrass")],
+  # Define predictors at the survey level as a list:
+  obsCovs = list( obsv = closeddf[ ,c("observer.j1", "observer.j2", "observer.j3")],
+  time = closeddf[ ,c('time.j1', 'time.j2', 'time.j3') ],
+  time2 = cbind( (closeddf$time.j1)^2, (closeddf$time.j2)^2, 
                                      (closeddf$time.j3)^2 ) ) ) 
 
 # View summary of unmarked dataframe:
@@ -74,10 +75,10 @@ summary( umf )
 ### Analyze data ------------------------------------------
 # We are now ready to perform our analysis. We start with a full model:
 fm.closed <- pcount( ~ 1 + obsv + time + time2
-                   ~ 1 + sagebrush +cheatgrass, 
+                   ~ 1 + sagebrush + cheatgrass, 
                    #Define the maximum possible abundance
                    #during the primary occasion
-                    K = 1000,
+                    K = 40,
                    data = umf )
 # Note that we start with the observation submodel #
 #We then define the ecological submodel 
@@ -109,7 +110,8 @@ exp(coef(fm.closed[1]))
 # observed test statistic divided by the mean of the simulated test statistics #
 
 # Let's compute observed chi-square, assess significance, and estimate c-hat
-gof.boot <- Nmix.gof.test( fm.closed, nsim = 100, print.table = TRUE )
+gof.boot <- Nmix.gof.test( fm.closed, nsim = 100, 
+                           print.table = TRUE )
 #view
 gof.boot
 # What does the output tell us about our model fit?
@@ -121,7 +123,7 @@ gof.boot
 # pp. 691-692.#
 # We run the null model
 fm.null <- pcount( ~ 1 ~ 1,
-            K = 1000, data = umf )
+            K = 40, data = umf )
 #view
 fm.null
 # Now build the list with the two models of interest:
@@ -132,10 +134,6 @@ unmarked::modSel(rms, nullmod = "null" )
 # What does this tell us?
 # Answer:
 #
-# What about a comparison of our fitted vs observed values?
-plot(  closeddf[,'count.j1'], fitted( fm.closed)[,1] )
-points( closeddf[,'count.j2'], fitted( fm.closed)[,2] )
-points( closeddf[,'count.j3'], fitted( fm.closed)[,3] )
 # Now use gof checks outlined in Knape et al. 2018 MEE 9:2102-2114
 # We start by estimating overdispersion metrics 
 chat( fm.closed, type = 'marginal' )
@@ -184,7 +182,7 @@ residqq( fm.closed, type = 'observation' )
 n <- 100
 # what are the min max times:
 closeddf %>% select( time.j1, time.j2, time.j3 ) %>% 
-  summarise_all(list(min, max))
+  summarise_all(list(min, max) )
 #use them to define your bounds:
 Time <- round(seq( 0, 360, length.out = n ),0)
 Time2 <- Time^2
@@ -193,7 +191,7 @@ time2.std <- scale( Time2 )
 # now for detection
 detData <- data.frame( obsv = factor(c("tech.1", "tech.1","tech.1", "tech.1"), 
               levels = c("tech.1", "tech.2","tech.3", "tech.4") ), 
-                                     time = time.std, time2 = time2.std )
+              time = time.std, time2 = time2.std )
 #predict partial relationship:
 pred.time <- predict( fm.closed, type = "det", newdata = detData, 
                            appendData = TRUE )

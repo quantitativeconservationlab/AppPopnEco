@@ -3,7 +3,7 @@
 ##     This script was created by Dr. Jen Cruz as part of            ##
 ##            the Applied Population Ecology Class                  ###
 ##                                                                   ##  
-# We import results for Bayesian analysis of single season counts   ###
+# We import results for Bayesian analysis of multi-season counts   ###
 # which were modelled using a N-mixture model in a Bayesian framework #
 #                                                                     #
 # We visualize model results and model fit in this script            #
@@ -21,18 +21,11 @@ library( jagsUI )
 ###################################################################
 #### Load or create data -----------------------------------------
 #load relevant workspace
-load( "CountBayesResults.RData" )
+load( "RobCountBayesResults.RData" )
 
 ################################################################################
 #################### viewing model results ####################################
 ##################################################################################
-#which model should we use moving forward? 
-#answer: 
-
-#get summary from three models:
-summary(m1); summary(m2); summary(m3)
-
-# For homework you don't have to compare models since you only run one. 
 
 #define model results to plot
 mr <- m2
@@ -50,7 +43,7 @@ traceplot( mr, parameters = c( 'alpha') )
 #for abundance
 traceplot( mr, parameters = c( 'int.lam') )
 traceplot( mr, parameters = c( 'beta') )
-traceplot( mr, parameters = c( 'eps.i') )
+traceplot( mr, parameters = c( 'gamma') )
 
 ############## whisker plots #############
 par( mfrow = c( 1,1 ), ask = F , mar = c(3,4,2,2) )
@@ -62,66 +55,81 @@ whiskerplot( mr, parameters = c( "eps.det" ) )
 #for abundance
 par( mfrow = c( 1,1 ), ask = F , mar = c(3,4,2,2) )
 #fixed effects for abundance
-whiskerplot( mr, parameters = c( 'int.lam', 'beta' ) , zeroline = TRUE )
-#random intercept for site
-whiskerplot( mr, parameters = c( "eps.i" ) )
+whiskerplot( mr, parameters = c( 'beta' ) , zeroline = TRUE )
 
 #derived parameters
 whiskerplot( mr, parameters = c( "p" ) )
 whiskerplot( mr, parameters = c( "N" ) )
 
-
-#############################################################
-### model evaluation ##########################################
-
-#combine fit statistics into dataframe for plotting
-fitdf <- data.frame( fit = mr$sims.list$fit, 
-                fit.new = mr$sims.list$fit.new )
-head( fitdf)
-#plot
-ggplot( fitdf, aes( x = fit, y= fit.new ) ) +
-  geom_point( size = 2 ) +
-  theme_classic( base_size = 17 ) +
-  xlab( "Discrepancy actual data" ) +
-  ylab( "Discrepancy predicted data" ) +
-  geom_abline(intercept = 0, slope = 1)
-
-#calculate chat:
-mean( mr$mean$fit ) / mean( mr$mean$fit.new )
-
-
-######### end model evaluation ######################################
 ##################################################################
-######### violin plots ###########################################
-# We may want to plot our model coefficient distributions #
-# one approach is to use violin plots
-# here we demonstrate for the abundance submodel
-#start with extracting relevant fixed effects for abundance submodel
-beta.mat <- mr$sims.list$beta
-#label columns based on order you included predictors in the model
-colnames( beta.mat ) <- c( "Cheatgrass (%)", "Sagebrush (%)" )
+######### annual plots  ###########################################
+# We look at annual changes in abundance for our sites ###
 
-# convert matrix to long format
-beta.df <- tidyr::gather( data = as.data.frame( beta.mat), key = Predictor,
-                          Value )
-#plot 
-ggplot( beta.df, aes( y = Value, x = Predictor, fill = Predictor ) ) + 
-  #set plotting theme 
-  theme_classic( base_size = 17 ) + 
-  #add label for y axis
-  ylab( 'Standardized effect size' ) +
-  #plot distribution
-  geom_violin( trim = FALSE, #fill = '#A4A4A4', 
-               size = 0.5 ) +
-  #add boxplot highlighting mean and 95 CIs 
-  geom_boxplot( width = 0.1 ) +
-  #add zero line
-  geom_hline( yintercept = 0, size = 1.2, color = 'black' )
+Ndf <- opendf %>% 
+  dplyr::select( o.sites, year, siteid, yearid )
+#view
+head( Ndf ); dim( Ndf )
+# start by extracting mean Abundance for your sites
+Nwide <- as.data.frame(mr$mean$N)
+colnames( Nwide) <-  sort(unique(opendf$year)) 
+head(Nwide)
+Nwide$siteid <- sort(unique(opendf$siteid ) )
+Nlong <- pivot_longer( Nwide, cols = starts_with("2"),
+              names_to = "year",
+              values_to = "N" )
+head(Nlong)
+#now add credible intervals
+L <- H <- data.frame( mr$mean$N )
+for(i in 1:I){
+  for(k in 1:K) {
+    L[i,k] <-  quantile(
+      mr$sims.list$N[ ,i,k ],
+      probs = 0.025, na.rm = TRUE )
+    H[i,k] <-  quantile(
+      mr$sims.list$N[ ,i,k ],
+      probs = 0.975, na.rm = TRUE )
+  }}
+colnames( L ) <- colnames( H ) <-  sort(unique(opendf$year)) 
+head(L)
+low <- L %>%
+  pivot_longer( cols = starts_with("2"),
+                names_to = "year",
+                values_to = "Nlow" )
 
-#repeat process for detection submodel here:
-#
-# 
-#
+high <- H %>%
+  pivot_longer( cols = starts_with("2"),
+                names_to = "year",
+                values_to = "Nhigh" )
+Nlong$Nlow <- low$Nlow
+Nlong$Nhigh <- high$Nhigh
+
+bind_cols( Nlong, opendf[ ,c("count.j1", "count.j2", "count.j3")] )
+#look at annual changes in abundance
+ggplot( Nlong, aes( x = year, y = N, 
+  group = as.factor(siteid), color= as.factor(siteid)))  +
+  theme_bw( base_size = 15 ) +
+  theme( legend.position = "none" ) +
+  geom_point( size = 3 ) +
+  geom_line( linewidth = 2 )
+
+#compare to max counts
+ggplot( Nlong, aes( x = year, y = N, 
+                  group = as.factor(siteid), 
+                  color= as.factor(siteid)))  +
+  theme_bw( base_size = 15 ) +
+  theme( legend.position = "none" ) +
+  geom_point( size = 3 ) +
+   geom_line( linewidth = 2 ) +
+   geom_ribbon( alpha = 0.3, 
+       aes( ymin = Nlow, ymax = Nhigh,
+            fill = as.factor(siteid) ) )
+
+opendf %>% 
+  dplyr::select(siteid, year, 
+                count.j1, count.j2, count.j3) %>% 
+  mutate( year = as.character(year) ) %>% 
+    left_join( Nlong, by = c("siteid", "year") )
+
 ####################################################################
 ######### partial prediction plots #############################
 # Estimate partial prediction plots (marginal effect plots) for predictors 
@@ -133,16 +141,18 @@ n <- 100
 #define a vector of ones for intercept
 int <- rep( 1, n )
 # Use the observed values to define range of predictor:
-sagebrush <- seq( min( closeddf[,"sagebrush"]),max( closeddf[,"sagebrush"]),
+cheatgrass <- seq( min( opendf[,"cheatgrass"]),max( opendf[,"cheatgrass"]),
                    length.out = n )
 #standardize predictors:
-sagebrush.std <- scale( sagebrush )
+cheat.std <- scale( cheatgrass )
 
 #extract relevant fixed coefficient from abundance submodel results
-fixedabund <- cbind( mr$sims.list$int.lam, mr$sims.list$beta[,2] )
+fixedabund <- cbind( mr$sims.list$int.lam, mr$sims.list$beta[,1] )
 
 #estimate predicted abundance 
-predabund <- exp( fixedabund %*% t( cbind( int, sagebrush.std) ) )
+predabund <- exp( (fixedabund %*% t( cbind( int, cheat.std ) ) ) +
+                    mean(mr$mean$N ) * mr$mean$gamma )
+            
 #calculate mean abundance
 mabund <- apply( predabund, MARGIN = 2, FUN = mean )
 #calculate 95% Credible intervals for abundance
@@ -151,24 +161,56 @@ CIabund <- apply( predabund, MARGIN = 2, FUN = quantile,
 
 #create dataframe combining all predicted values for plotting
 abunddf <- data.frame( mabund, t(CIabund),
-                       sagebrush.std, sagebrush )
+                       cheat.std, cheatgrass )
 #view
 head( abunddf); dim( abunddf)
 #rename predicted abundance columns
 colnames(abunddf )[1:3] <- c(  "Mean", "lowCI", "highCI" )
 
 #plot marginalised effects for abundance submodel 
-ggplot( abunddf, aes( x = sagebrush, y = Mean) ) +
+ggplot( abunddf, aes( x = cheatgrass, y = Mean) ) +
   theme_classic( base_size = 17) +
   ylab( "Relative abundance" ) +
-  xlab( "Sagebrush (%)" ) +
+  xlab( "Cheatgrass (%)" ) +
   geom_line( size = 1.5) +
   geom_ribbon( alpha = 0.3, aes( ymin = lowCI, ymax = highCI ) )
 
-#How does this plot compare to the one you obtained from the 
-# unmarked analysis?
-# Answer: 
-# 
+#repeat for AprMay temp
+# Use the observed values to define range of predictor:
+aprmayT <- seq( min( opendf[,"AprMay.maxT"]),max( opendf[,"AprMay.maxT"]),
+                   length.out = n )
+#standardize predictors:
+aprmayT.std <- scale( aprmayT )
+
+#extract relevant fixed coefficient from abundance submodel results
+aprmayTabund <- cbind( mr$sims.list$int.lam, mr$sims.list$beta[,4] )
+
+#estimate predicted abundance 
+tabund <- exp( aprmayTabund %*% t( cbind( int, aprmayT.std) ) +
+                 mean(mr$mean$N ) * mr$mean$gamma )
+#calculate mean abundance
+tmabund <- apply( tabund, MARGIN = 2, FUN = mean )
+#calculate 95% Credible intervals for abundance
+tCIabund <- apply( tabund, MARGIN = 2, FUN = quantile, 
+                  probs = c(0.025, 0.975) )
+
+#create dataframe combining all predicted values for plotting
+tabunddf <- data.frame( tmabund, t(tCIabund),
+                       aprmayT.std, aprmayT )
+#view
+head( tabunddf); dim( tabunddf)
+#rename predicted abundance columns
+colnames(tabunddf )[1:3] <- c(  "Mean", "lowCI", "highCI" )
+
+#plot marginalised effects for abundance submodel 
+ggplot( tabunddf, aes( x = aprmayT, y = Mean) ) +
+  theme_classic( base_size = 17) +
+  ylab( "Relative abundance" ) +
+  xlab( "Maximum Temperature (Apr-May)" ) +
+  geom_line( size = 1.5) +
+  geom_ribbon( alpha = 0.3, aes( ymin = lowCI, ymax = highCI ) )
+
+
 ##### detection marginal effects ######
 # our only fixed predictor in detection submodel was time
 # what are the min max times:
@@ -186,11 +228,11 @@ preddet <- plogis( fixeddet %*% t( cbind( int, time.std, time2.std ) ) )
 mdet <- apply( preddet, MARGIN = 2, FUN = mean )
 #calculate 95% Credible intervals for abundance
 CIdet <- apply( preddet, MARGIN = 2, FUN = quantile, 
-                  probs = c(0.025, 0.975) )
+                probs = c(0.025, 0.975) )
 
 #create dataframe combining all predicted values for plotting
 detdf <- data.frame( mdet, t(CIdet),
-                       time.std, time2.std, Time )
+                     time.std, time2.std, Time )
 #view
 head( detdf); dim( detdf)
 #rename predicted abundance columns

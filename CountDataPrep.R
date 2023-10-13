@@ -114,7 +114,7 @@ opendf %>% group_by( year, o.sites ) %>%
   # why?
   mutate( maxc = max( count.j1, count.j2, count.j3 ) ) %>%
   # we select columns we need for plotting
-  select( o.sites, year, maxc ) %>% ungroup() %>%
+  dplyr::select( o.sites, year, maxc ) %>% ungroup() %>%
   # we group data by year
   ggplot(., aes(group = year )) +
   # choose a preset theme
@@ -130,7 +130,7 @@ opendf %>% group_by( year, o.sites ) %>%
   dplyr::select( o.sites, year, maxc ) %>% ungroup() %>%
   # we group data by year
   ggplot(., aes(color = as.factor(o.sites), x = year, y = maxc )) +
-  theme_bw( base_size = 15 ) + 
+  theme_bw( base_size = 15 ) +
   geom_line()
   
 # What do we see? What is happening to site abundances, but also to #
