@@ -232,7 +232,7 @@ fm.dyn <- pcountOpen( #lambda formula for initial abundance:
   lambdaformula = ~1, 
   gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT, 
   omegaformula = ~1,
-  pformula = ~1  + time + I(time)^2,  
+  pformula = ~1 + time,  
   K = 40, 
   se = FALSE, 
   immigration = FALSE,
@@ -249,7 +249,7 @@ inits <- coef( fm.dyn )
 #run model
 fm.dynSE <- pcountOpen( lambdaformula = ~1, 
         gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT,
-        omegaformula = ~1,  pformula = ~1  + time + I(time)^2, 
+        omegaformula = ~1,  pformula = ~1 + time, 
         K = 40, se = TRUE, data = umf,
         control = list( trace = TRUE, REPORT = 1), starts = inits )
 
@@ -261,7 +261,7 @@ summary(fm)
 exp(coef(fm, type = "lambda"))
 #depending on your dynamics, the transformation is a expit or exp:
 plogis(coef(fm, type = "omega"))
-exp(coef(fm, type = "omega"))
+#exp(coef(fm, type = "omega"))
 #depending on your dynamics, gamma may not be present (e.g. in no trend model)
 exp( coef( fm, type = "gamma"))
 plogis( coef( fm, type = "det" ) )
@@ -298,27 +298,6 @@ gof.boot <- Nmix.gof.test( fm, nsim = 100, print.table = TRUE )
 gof.boot
 # Remember that higher chi-squared values represent worse fit
 
-
-#Plot rq residuals against untransformed numeric predictors. This may help
-# detect problems with the functional form assumed in a model
-residcov( fm )
-# What do the plots tell you?
-# Answer:
-#
-# Plot residuals against fitted values. Site-sum randomized quantile residuals
-# are used for site covariates while marginal residuals are used for
-# observation covariates. 
-residfit( fm, type = 'site-sum' )
-# Plot the observation model residuals
-residfit( fm, type = 'observation' )
-# What did Knape et al. 2018 say these residuals were useful for?
-# Answer:
-#
-# Niw plot Qq plots of randomized residuals against standard normal quantiles. #
-# Under a good fit, residuals should be close to the identity line. 
-residqq( fm, type = 'site-sum' )
-residqq( fm, type = 'observation' )
-
 #########################################################################
 ##### Summarizing model output ##############
 # We now check the effects that our predictors are having on abundance #
@@ -335,7 +314,7 @@ sage.std <- scale( sage )
 #combine standardized predictor into a new dataframe to predict partial relationship
 sageData <- data.frame( sagebrush = sage.std, AprMay.maxT = 0, Feb.minT = 0 )
 #predict partial relationship
-pred.sage <- predict( fm.gompertz, type = "gamma", newdata = sageData, 
+pred.sage <- predict( fm, type = "gamma", newdata = sageData, 
                       appendData = TRUE )
 #view
 head( pred.sage ); dim( pred.sage )
@@ -348,7 +327,7 @@ minT.std <- scale( minT )
 #combine standardized predictor into a new dataframe to predict partial relationship
 minData <- data.frame( sagebrush = 0, Feb.minT = minT.std, AprMay.maxT = 0)
 #predict partial relationship
-pred.minT <- predict( fm.gompertz, type = "gamma", newdata = minData, 
+pred.minT <- predict( fm, type = "gamma", newdata = minData, 
                            appendData = TRUE )
 
 #AprMay.maxT
@@ -359,13 +338,13 @@ maxT.std <- scale( maxT )
 #combine standardized predictor into a new dataframe to predict partial relationship
 maxData <- data.frame( sagebrush = 0, Feb.minT = 0, AprMay.maxT = maxT.std )
 #predict partial relationship
-pred.maxT <- predict( fm.gompertz, type = "gamma", newdata = maxData, 
+pred.maxT <- predict( fm, type = "gamma", newdata = maxData, 
                       appendData = TRUE )
 
 # create plots for ecological submodels
-sagep <- cbind( pred.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %>%
+sagep <- cbind( pred.sage[,c("Predicted", "lower", "upper") ], sage ) %>%
   # define x and y values
-  ggplot(., aes( x = sagebrush, y = Predicted ) ) + 
+  ggplot(., aes( x = sage, y = Predicted ) ) + 
   #choose preset look
   theme_bw( base_size = 15 ) +
   # add labels
