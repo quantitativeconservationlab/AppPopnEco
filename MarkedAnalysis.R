@@ -95,15 +95,6 @@ crPiFun.b <- function(p) {
         "111" = pNaive * pWise * pWise)
 }
 
-alfl <- read.csv(system.file("csv", "alfl.csv", package="unmarked"))
-alfl.covs <- read.csv(system.file("csv", "alflCovs.csv",
-                                  package="unmarked"), row.names=1)
-alfl$captureHistory <- paste(alfl$interval1, alfl$interval2, alfl$interval3, sep="")
-alfl$captureHistory <- factor(alfl$captureHistory,
-            levels=c("001", "010", "011", "100", "101", "110", "111"))
-alfl$id <- factor(alfl$id, levels=rownames(alfl.covs))
-alfl.v1 <- alfl[alfl$survey==1,]
-alfl.H1 <- table(alfl.v1$id, alfl.v1$captureHistory)
 ### For the M[b] model we create a behavior dummy variable 
 bMat <- matrix( c("Naive", "Wise", "Wise"), dim(y_ik[keep,])[1], 
                 J, byrow = TRUE )

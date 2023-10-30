@@ -13,7 +13,7 @@
 # each day, 2-mean tempC_st up to the hour the traps were closed, 3-mean #
 # wind up to the hour the traps were closed each day                   #
 #
-# Predictors for abundance: only 14 sites so be mindful of how            #
+# Predictors for abundance: only 20 sitesXyear so be mindful of how            #
 # many we can reasonably include. The data this time comes from RAP:
 # https://rangelands.app/products/ #
 # and includes measures of cover for: shrub, perennial, annual and the #
