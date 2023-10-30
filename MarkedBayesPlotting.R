@@ -38,6 +38,13 @@ whiskerplot( m1, parameters = c( 'alpha', "beta" ) ,
 whiskerplot( m2, parameters = c( 'alpha', "beta" ) , 
              zeroline = TRUE )
 
+whiskerplot( m1, parameters = c( "p" ) )
+whiskerplot( m2, parameters = c( "p" ) )
+whiskerplot( m1, parameters = c( "N" ) )
+whiskerplot( m2, parameters = c( "N" ) )
+whiskerplot( m1, parameters = c( "eps.i" ) )
+whiskerplot( m2, parameters = c( "eps.i" ) )
+
 # calculate Bayesian p values 
 #m1 model:
 mean(m1$sims.list$fit1_hat > m1$sims.list$fit1 )
@@ -46,10 +53,9 @@ mean(m2$sims.list$fit1_hat > m2$sims.list$fit1 )
 mean(m2$sims.list$fit2_hat > m2$sims.list$fit2 )
 
 #choose model going forward
-mr <- m2
+mr <- m1
 #derived parameters
-whiskerplot( mr, parameters = c( "p" ) )
-whiskerplot( m1, parameters = c( "N" ) )
+
 ##################################################################
 #### visualizing abundance for sites trapped ###################
 ###
@@ -137,7 +143,7 @@ lam.preds <- estppreds( type = 'abundance',
                         coefs = mr$sims.list$beta,
                         rawpreds = ik_df, 
                         labs = colnames( XIK ),
-                        nicelabs = c("Srub (%)", "Perennial (%)", "Annual (%)")
+                        nicelabs = c("Perennial (%)", "Annual (%)")
 )
 #plot predictors for abundance
 ggplot( data = lam.preds, aes( x = Raw, y = Mean ) ) +

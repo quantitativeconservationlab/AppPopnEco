@@ -161,7 +161,7 @@ params <- c(  'int.det' #intercept for detection
 
 head( ik_sc)
 # We select the abundance predictors we want
-XIK <- ik_sc[,c("shrub", "perennial", "annual")]
+XIK <- ik_sc[,c("perennial", "annual")]
 #how many ecological predictors
 B <- dim(XIK)[2]
 #how many detection predictors
@@ -192,7 +192,7 @@ str( win.data <- list( y = as.matrix(y_ik),
 m1 <- autojags( win.data, inits = inits, params, modelname, #
                   n.chains = nc, n.thin = nt, n.burnin = nb,
                   iter.increment = ni, max.iter = 1000000, 
-                  Rhat.limit = 1.05,
+                  Rhat.limit = 1.02,
                   save.all.iter = FALSE, parallel = TRUE ) 
 #m1 <- update( m1, parameters.to.save= params,
 #                    n.iter = 500000, n.thin = nt)
@@ -378,7 +378,7 @@ str( win.data <- list( y = as.matrix(y_ik),
 m2 <- autojags( win.data, inits = inits, params, modelname, #
                   n.chains = nc, n.thin = nt, n.burnin = nb,
                   iter.increment = ni, max.iter = 1000000, 
-                  Rhat.limit = 1.05,
+                  Rhat.limit = 1.02,
                   save.all.iter = FALSE, parallel = TRUE ) 
 #m2 <- update( m2, parameters.to.save= params,
 #                    n.iter = 500000, n.thin = nt)
