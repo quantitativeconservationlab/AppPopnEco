@@ -51,14 +51,22 @@ ik_df <- read.csv( paste0( datadir, "traps_ik_df_21-23.csv"),
 # Start viewing our observations dataframe:
 head( ch ); dim( ch )
 
+###define model parameters:
 #how many sites?
-(M <- length( unique(ch$id) ) )
+(S <- length( unique(ch$SiteID) ) )
+#how many unique siteXyear combo?
+I <- max( ik_df$idno )
 #which years (primary seasons) were sampled:
 (yrrange <- sort( unique( ch$year ) ) )
 #how many years were sampled:
 (T <- length( yrrange ) )
-#define number of repeat surveys
-J <- 3 
+#max number of surveys at a given site
+J <- 3
+#number of unique individuals
+N <- max( ch$AnimalID, na.rm = TRUE )
+#number of individuals (including augmented group)
+M <- N * 3
+
 #calculate naive abundance for each sex:
 N_naive <- ch %>% group_by( id, year, Sex ) %>% 
   summarise( captures = n()  ) %>% ungroup()
@@ -123,17 +131,6 @@ y_ik[is.na(y_ik)] <- 0
 y_ik
 #calculate number of individuals captured per site
 n_ik <- apply( y_ik, 1, sum )
-
-#define model parameters 
-#max number of surveys at a given site
-J <- 3
-#number of unique individuals
-N <- max( ch$AnimalID, na.rm = TRUE )
-#number of individuals (including augmented group)
-M <- N * 3
-#number of sites X year
-I <- max( ik_df$idno )
-
 
 ##### prepare data for data augmentation analysis #####
 # instead of summarizing to capture histories we keep information 
