@@ -63,10 +63,10 @@ cat( "
       int.lam ~ dnorm( 0, 0.01 )
 
       #priors for abundance coefficients:
-      for( b in 1:B ){
+      #for( b in 1:B ){
         #define as a slightly informative prior
-      beta[b] ~ dnorm( 0, 0.2 ) T(-7, 7 )
-       }
+      beta ~ dnorm( 0, 0.2 ) T(-7, 7 )
+      # }
       
     # Convert to Poisson/lognormal to account for overdispersion 
       # between sites by adding a random intercept for site
@@ -88,7 +88,7 @@ cat( "
       log( lambda[ i ] ) <- int.lam + 
                         eps.i[ site[i] ] + #random site effect
                         #we matrix multiply for all habitat predictors:
-                        inprod( beta, XIK[ i, ])
+                        inprod( beta, XIK[ i ])
         
           #poisson parameter = multinomial cell probabilities of 
           # expected abundance for each survey day
@@ -161,9 +161,10 @@ params <- c(  'int.det' #intercept for detection
 
 head( ik_sc)
 # We select the abundance predictors we want
-XIK <- ik_sc[,c("perennial", "annual")]
+#XIK <- ik_sc[,c("perennial", "annual")]
+XIK <- ik_sc[ ,"herbaceous" ]
 #how many ecological predictors
-B <- dim(XIK)[2]
+B <- 1#dim(XIK)[2]
 #how many detection predictors
 A <- 3
 #define initial parameter values
@@ -233,10 +234,10 @@ cat( "
       int.lam ~ dnorm( 0, 0.01 )
 
       #priors for abundance coefficients:
-      for( b in 1:B ){
+      #for( b in 1:B ){
         #define as a slightly informative prior
-        beta[b] ~ dnorm( 0, 0.2 ) T(-7, 7 )
-       }
+        beta ~ dnorm( 0, 0.2 ) T(-7, 7 )
+      # }
       
     # Convert to Poisson/lognormal to account for overdispersion 
       # between sites by adding a random intercept for site
@@ -259,7 +260,7 @@ cat( "
       log( lambda[ i ] ) <- int.lam + 
                         eps.i[ site[i] ] + #random site effect
                         #effect of herbaceous cover
-                        inprod( beta, XIK[ i, ] )
+                        inprod( beta, XIK[ i ] )
         
           #poisson parameter = multinomial cell probabilities of 
           # expected abundance for each survey day
@@ -380,16 +381,15 @@ m2 <- autojags( win.data, inits = inits, params, modelname, #
                   iter.increment = ni, max.iter = 1000000, 
                   Rhat.limit = 1.02,
                   save.all.iter = FALSE, parallel = TRUE ) 
-m2 <- update( m2, parameters.to.save= params,
-                    n.iter = 500000, n.thin = nt)
+# m2 <- update( m2, parameters.to.save= params,
+#                     n.iter = 500000, n.thin = nt)
 
 plot(m2)
 summary(m2)
 
 ###### end m2 ########
 
-
 ##### save relevant stuff ##################################
-save.image( "MarkedResultsJAGs.RData")
+save.image( "MarkedResultsJAGs2.RData")
 
 ################### end of script #######################################

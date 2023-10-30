@@ -20,7 +20,7 @@ source("https://raw.githubusercontent.com/datavizpyr/data/master/half_flat_violi
 # Clean your workspace to reset your R environment. #
 rm( list = ls() )
 #load relevant workspace
-load( "MarkedResultsJAGs.RData" )
+load( "MarkedResultsJAGs2.RData" )
 ################################################################################
 #################### viewing model results ####################################
 ##################################################################################
@@ -114,7 +114,9 @@ estppreds <- function( type = "detection", sl = 100, int, coefs,
     sclx <- scale( x )
     
     # extract fixed effects 
-    fixed <-  cbind( int, coefs[,mp] )
+    ifelse( length(labs) == 1, 
+          fixed <- cbind( int, coefs),
+    fixed <-  cbind( int, coefs[,mp] ) )
     ifelse( type == "detection",
             #estimate predicted response
             estpred <- plogis( fixed %*% t( cbind(ones, sclx ) ) ),
@@ -142,8 +144,8 @@ lam.preds <- estppreds( type = 'abundance',
                         int = mr$sims.list$int.lam, 
                         coefs = mr$sims.list$beta,
                         rawpreds = ik_df, 
-                        labs = colnames( XIK ),
-                        nicelabs = c("Perennial (%)", "Annual (%)")
+                        labs = "herbaceous",
+                        nicelabs = c("Herbaceous cover (%)")
 )
 #plot predictors for abundance
 ggplot( data = lam.preds, aes( x = Raw, y = Mean ) ) +

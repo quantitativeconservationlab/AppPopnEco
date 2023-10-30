@@ -128,8 +128,9 @@ estppreds <- function( type = "detection", sl = 100, int, coefs,
     #scale predictor
     sclx <- scale( x )
     
-    # extract fixed effects 
-    fixed <-  cbind( int, coefs[,mp] )
+    ifelse( length(labs) == 1, 
+            fixed <- cbind( int, coefs),
+            fixed <-  cbind( int, coefs[,mp] ) )
     ifelse( type == "detection",
             #estimate predicted response
             estpred <- plogis( fixed %*% t( cbind(ones, sclx ) ) ),
@@ -157,8 +158,8 @@ lam.preds <- estppreds( type = 'abundance',
                         int = mr$sims.list$int.lam, 
                         coefs = mr$sims.list$beta,
                         rawpreds = ik_df, 
-                        labs = colnames( XIK ),
-                        nicelabs = c("Perennial (%)", "Annual (%)")
+                        labs = "herbaceous",
+                        nicelabs = "Herbaceous (%)"
 )
 #plot predictors for abundance
 ggplot( data = lam.preds, aes( x = Raw, y = Mean ) ) +

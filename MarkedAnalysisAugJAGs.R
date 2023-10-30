@@ -60,10 +60,10 @@ cat( "
       int.lam ~ dnorm( 0, 0.01 )
 
       # #priors for abundance coefficients:
-      for( b in 1:B ){
+      #for( b in 1:B ){
         #define as a slightly informative prior
-       beta[ b ] ~ dnorm( 0, 0.2 ) T(-7, 7 )
-       }
+       beta ~ dnorm( 0, 0.2 ) T(-7, 7 )
+       #}
       
       #prior for individual random effects 
        prec.n <- 1 / ( sigma.n * sigma.n )
@@ -91,7 +91,7 @@ cat( "
       log( lambda[ i ] ) <- int.lam +
                           #random site effect    
                           eps[i] +
-                        inprod( beta, XIK[ i, ]  )
+                        inprod( beta, XIK[ i ]  )
                         
     } #i
     
@@ -106,9 +106,7 @@ cat( "
         
         #individual random effect
         eta[ n ] ~ dnorm( 0, prec.n ) 
-        #data augmentation variables
         
-      
         for( j in 1:J ){ #loop over survey occassions
         
           logit( p[n,j] ) <-  int.det + eta[ n ] + 
@@ -158,8 +156,15 @@ params <- c(  'int.det' #intercept for detection
               , 'N.tot' #total abundance across sites and years
 )
 
-#initial values for z
+#initial values for whether an augmented individual is added in
 zst <- c( rep(1, N), rep(0, M-N) )
+# We select the abundance predictors we want
+XIK <- ik_sc[,c("herbaceous")]
+#how many ecological predictors
+B <- 1#dim(XIK)[2]
+#how many detection predictors
+A <- 3
+
 #define initial parameter values
 inits <- function(){ list( beta = rnorm( B ),
                            alpha = rnorm( A ),
@@ -173,7 +178,7 @@ str( win.data <- list( y = as.matrix(y[ ,c("j_1", "j_2", "j_3") ] ),
                        #siteXyear id for each individual
                        site = y$idno,
                        #site level habitat predictors
-                       XIK = XIKin,
+                       XIK = XIK,
                        #observation predictors:
                        wind = ij_wide[,widx],
                        temp = ij_wide[,tidx],
@@ -183,7 +188,7 @@ str( win.data <- list( y = as.matrix(y[ ,c("j_1", "j_2", "j_3") ] ),
 #call JAGS and summarize posteriors:
 ma1 <- autojags( win.data, inits = inits, params, modelname, #
                   n.chains = nc, n.thin = nt, n.burnin = nb,
-                  iter.increment = 20000, max.iter = 1000000, 
+                  iter.increment = ni, max.iter = 1000000, 
                   Rhat.limit = 1.1,
                   save.all.iter = FALSE, parallel = TRUE ) 
 
@@ -192,6 +197,7 @@ ma1 <- autojags( win.data, inits = inits, params, modelname, #
 
 plot(ma1)
 summary(ma1)
+#####################################################
 ##### save relevant stuff ##################################
 save.image( "MarkedAugResultsJAGs.RData")
 
