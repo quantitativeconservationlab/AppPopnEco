@@ -380,9 +380,9 @@ m2 <- autojags( win.data, inits = inits, params, modelname, #
                   iter.increment = ni, max.iter = 1000000, 
                   Rhat.limit = 1.02,
                   save.all.iter = FALSE, parallel = TRUE ) 
-#m2 <- update( m2, parameters.to.save= params,
-#                    n.iter = 500000, n.thin = nt)
-#
+m2 <- update( m2, parameters.to.save= params,
+                    n.iter = 500000, n.thin = nt)
+
 plot(m2)
 summary(m2)
 

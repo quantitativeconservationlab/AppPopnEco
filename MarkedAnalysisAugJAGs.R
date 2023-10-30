@@ -153,6 +153,7 @@ params <- c(  'int.det' #intercept for detection
               , 'eta' #individual random intercept in detection
               , 'eps' #random intercept for site
               , 'psi' #prob augmented individual belongs in N 
+              , 'p' #detection probability
               , 'N.site' #estimates of abundance by site
               , 'N.tot' #total abundance across sites and years
 )
