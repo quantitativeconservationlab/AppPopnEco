@@ -42,7 +42,7 @@ traceplot( mr, parameters = c( 'sigma.i', 'sigma.n') )
 #random intercept for site
 traceplot( mr, parameters = c("eps" ))
 # random intercept for individual 
-traceplot( mr, parameters = c( 'eta') )
+traceplot( mr, parameters = c( 'eta'))
 
 ############## whisker plots #############
 par( mfrow = c( 2,1 ), ask = F , mar = c(3,4,2,2) )
@@ -53,16 +53,16 @@ whiskerplot( mr, parameters = c( 'alpha', "beta" ) ,
 #error for random effects
 whiskerplot( mr, parameters = c( 'sigma.i', "sigma.n" ) )
 #random effects for site
-whiskerplot( m1, parameters = c( "eps" ) )
+whiskerplot( mr, parameters = c( "eps" ) )
 #random effects for individual
-whiskerplot( m2, parameters = c( "eta" ) )
+whiskerplot( mr, parameters = c( "eta" ) )
 # probability of detection
-whiskerplot( m1, parameters = c( "p" ) )
+whiskerplot( mr, parameters = c( "p" ) )
 
 ##################################################################
 #### visualizing abundance for sites trapped ###################
 ###
-dim( mr$sims.list$N)
+dim( mr$sims.list$N.site)
 #levels: runs, sites, individuals
 head( ij_wide )
 #create dataframe to store abundance estimates
@@ -73,25 +73,30 @@ N_df$N.mean <- N_df$N.lowCI <- N_df$N.highCI <- NA
 
 #number of runs
 R <- mr$mcmc.info$n.samples
-#create matrix
+#create matrix that will hold the sum of individuals for each site
+# for each run of the MCMC
 a <- matrix(data = NA, nrow = R, ncol = I)
 #loop over runs and sites
 for( i in 1:I){
   for( r in 1:R){
-    #sum across individuals
+    #sum across all individuals (those augmented that got asigned 
+    #to the site on a given run will be added to the tally)
     a[r,i] <- sum( mr$sims.list$N.site[r,i,1:M] )
   }}
+#now that we created estimates of abundance for each run
+# we can calculate summary statistics (mean and CIs) 
+#loop over sites
 for( i in 1:I){
   #average across runs
     N_df[i,"N.mean"] <- mean( a[,i],na.rm = TRUE )
+  #95CI abundance for each site  
     N_df[i,c("N.lowCI", "N.highCI") ] <- quantile( a[,i],
                                     probs = c(0.025, 0.975),
                                     na.rm = TRUE )
 }
 #view abundance estimates
 head(N_df)
-###### plot abundance
-#plot abundance between sites and years
+###### plot abundance between sites and years
 N_df %>% 
   ggplot(., aes( y = SiteID, x = N.mean, 
                  color = as.factor(year) ) ) +
@@ -103,6 +108,9 @@ N_df %>%
   geom_errorbar( aes( xmin = N.lowCI, xmax = N.highCI ), 
                  size = 2 ) 
 
+#how does this compare to the abundance estimates from last week?
+#answer: 
+#
 ######### partial prediction plots #############################
 #Define plotting function: ##
 estppreds <- function( type = "detection", sl = 100, int, coefs, 
@@ -179,13 +187,13 @@ ggplot( data = lam.preds, aes( x = Raw, y = Mean ) ) +
               strip.position = "bottom" )
 
 p.preds <- estppreds( type = 'detection',
-                      sl = 100, 
-                      int = mr$sims.list$int.det, 
-                      coefs = mr$sims.list$alpha,
-                      rawpreds = ikj_df, 
-                      labs = c("wind_kmph_st", "tempC_st", "effort_mins" ), 
-                      nicelabs = c( "Wind (km/hr)", "Mean temperature (C)",
-                                    "Effort (mins)" )
+      sl = 100, 
+      int = mr$sims.list$int.det, 
+      coefs = mr$sims.list$alpha,
+      rawpreds = ikj_df, 
+    labs = c("wind_kmph_st", "tempC_st", "effort_mins" ), 
+    nicelabs = c( "Wind (km/hr)", "Mean temperature (C)",
+                          "Effort (mins)" )
 )
 
 ggplot( data = p.preds, aes( x = Raw, y = Mean ) ) +

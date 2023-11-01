@@ -192,8 +192,8 @@ ma1 <- autojags( win.data, inits = inits, params, modelname, #
                   Rhat.limit = 1.1,
                   save.all.iter = FALSE, parallel = TRUE ) 
 
-# ma1 <- update( ma1, parameters.to.save= params,
-#                    n.iter = 500000, n.thin = nt)
+ma1 <- update( ma1, parameters.to.save= params,
+                  n.iter = 500000, n.thin = nt)
 
 plot(ma1)
 summary(ma1)
