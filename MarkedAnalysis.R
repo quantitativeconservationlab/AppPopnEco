@@ -183,7 +183,6 @@ Mtmodels <- fitList( "M0.NB" = M0.NB,
                       "Mt.NB" = Mt.full.NB 
                        )
 
-"Mb.NB" =  Mb.full.NB 
 #compare
 modSel( Mtmodels )
 # Which is our top model?

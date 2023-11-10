@@ -53,7 +53,7 @@ mean(m2$sims.list$fit1_hat > m2$sims.list$fit1 )
 mean(m2$sims.list$fit2_hat > m2$sims.list$fit2 )
 
 #choose model going forward
-mr <- m1
+mr <- m2
 #derived parameters
 
 ##################################################################

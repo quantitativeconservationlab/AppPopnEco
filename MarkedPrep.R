@@ -6,7 +6,7 @@
 # Our study species is the Piute ground squirrel, Spermophilus        # 
 # mollis at the Morley Nelson Birds of Prey Nature Conservation Area. #
 #                                                                     #            
-# We shift to real capture-recapture data from 14 sites collected     #
+# We shift to real capture-recapture data from 20 sites collected     #
 # during 2021 to 2023. Note that different sites were surveyed each year#
 #                                                                     #
 # Detection predictors: 1-effort: number of hours the traps were open #
@@ -94,10 +94,6 @@ N_naive %>% group_by( id ) %>%
 #What does this tell us?
 # Answer:
 #
-# we can also summarize capture histories
-table( ind_df$ch )
-# what do you notice? 
-# Answer:
 #
 head(ch)
 
@@ -107,7 +103,12 @@ ch$ch  <- apply( ch[,c('j_1', 'j_2', 'j_3') ],
 
 #turn ch to factor for multi-season:
 ch$ch  <- factor( ch$ch, 
-                  levels=c("001", "010", "011", "100", "101", "110", "111"))
+      levels=c("001", "010", "011", "100", "101", "110", "111"))
+
+# we can also summarize capture histories
+table( ch$ch )
+# what do you notice? 
+# Answer:
 
 #number of observed capture histories:
 CH <- length(levels(ch$ch))
@@ -161,6 +162,7 @@ M <- dim(y)[1] #- N #M - N = number of augmented individuals
 ############### prepare predictor data ##############
 #define predictors for detection
 preds <- c("effort_mins", "tempC_st", "wind_kmph_st" )
+
 #view histograms and correlation
 for( n in preds){
   hist( ikj_df[,n], main = n )
@@ -180,7 +182,7 @@ for( i in preds ){
 #check
 head( ij_sc )
 #turn to wide format
-ij_wide <- ij_sc %>%
+ij_wide <- ij_sc %>% select( -X ) %>% 
   pivot_wider( names_from = Survey,
      values_from = c( jday, effort_mins, tempC_st, wind_kmph_st),
      values_fill = 0 ) %>% 
