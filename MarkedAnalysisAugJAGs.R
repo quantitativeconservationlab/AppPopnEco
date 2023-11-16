@@ -76,7 +76,7 @@ cat( "
       #estimated prob that animal was present
       #M is number of augmented individuals, 
       #lambda is summed across all sites sum(lambda[1:I])
-      psi <- sum( lambda[]) / M  #psi is the prob of belonging to the superpopulation
+      psi <- sum( lambda[]) / M  
 
     # log-linear ecological model of abundance
     for( i in 1:I ){#sites
@@ -109,7 +109,7 @@ cat( "
         
         for( j in 1:J ){ #loop over survey occassions
         
-          logit( p[n,j] ) <-  int.det + eta[ n ] + #this is the detection random intercept
+          logit( p[n,j] ) <-  int.det + eta[ n ] +
                   #fixed effects
                   alpha[1] * wind[ site[n], j ] +
                   alpha[2] * temp[ site[n], j ] +
@@ -130,10 +130,9 @@ cat( "
           #estimated abundance
           N.site[i,n] <- step( 0.01 * ( i - site.out[n] ) - 0.02 *
                 ( i - site.out[n] ) * ( i - site.out[n] ) + 0.001 ) 
-          #summing the Z value for each site overall in this code while keeping individual and site information
       }}
 
-    N.tot <- sum( z[1:M] ) #estimates the superpopulation by summing all individuals across all sites
+    N.tot <- sum( z[1:M] ) 
     
      } #model close
      
