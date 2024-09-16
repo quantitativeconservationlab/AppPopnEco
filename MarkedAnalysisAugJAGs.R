@@ -76,7 +76,7 @@ cat( "
       #estimated prob that animal was present
       #M is number of augmented individuals, 
       #lambda is summed across all sites sum(lambda[1:I])
-      psi <- sum( lambda[]) / M 
+      psi <- sum( lambda[]) / M  
 
     # log-linear ecological model of abundance
     for( i in 1:I ){#sites
@@ -91,14 +91,14 @@ cat( "
       log( lambda[ i ] ) <- int.lam +
                           #random site effect    
                           eps[i] +
-                        inprod( beta, XIK[ i ]  )
+                        inprod( beta, XIK[ i ]  ) 
                         
     } #i
     
       #model for individual encounter histories:
       for( n in 1:M ){ #loop over all individuals
       
-        #site membership
+        #site membership/assignment
         site[ n ] ~ dcat( probs[] )
         
         #was animal present and undetected or not present
@@ -109,7 +109,7 @@ cat( "
         
         for( j in 1:J ){ #loop over survey occassions
         
-          logit( p[n,j] ) <-  int.det + eta[ n ] + 
+          logit( p[n,j] ) <-  int.det + eta[ n ] +
                   #fixed effects
                   alpha[1] * wind[ site[n], j ] +
                   alpha[2] * temp[ site[n], j ] +
@@ -129,10 +129,10 @@ cat( "
         for( i in 1:I ){#sites
           #estimated abundance
           N.site[i,n] <- step( 0.01 * ( i - site.out[n] ) - 0.02 *
-                ( i - site.out[n] ) * ( i - site.out[n] ) + 0.001 )
+                ( i - site.out[n] ) * ( i - site.out[n] ) + 0.001 ) 
       }}
 
-    N.tot <- sum( z[1:M] )
+    N.tot <- sum( z[1:M] ) 
     
      } #model close
      
@@ -161,7 +161,7 @@ zst <- c( rep(1, N), rep(0, M-N) )
 # We select the abundance predictors we want
 XIK <- ik_sc[,c("herbaceous")]
 #how many ecological predictors
-B <- 1#dim(XIK)[2]
+B <- 1 #dim(XIK)[2]
 #how many detection predictors
 A <- 3
 
