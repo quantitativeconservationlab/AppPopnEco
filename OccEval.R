@@ -71,7 +71,7 @@ gof.boot
 # Answer:
 #
 # We can also evaluate how well our full model did against the null model # 
-# by estimating pseudo-R^2, based on Nagelkerke, N.J.D. (2004) A Note #
+# by estimating pseudo-R^2, based on Nagelkerke, N.J.D. (1991) A Note #
 # on a General Definition of the Coefficient of Determination. Biometrika 78,#
 # pp. 691-692.#
 # (1 - R^2) represents the proportion of unexplained variation in the model
@@ -91,48 +91,6 @@ unmarked::modSel(rms, nullmod = "psi(.)p(.)" )
 
 # We could also compare all the models we run against our null:
 modSel(fms, nullmod = "psi(.)p(.)" )
-
-
-# We can also estimate additional fit statistics borrowing a function #
-# from the unmarked manual under parboot() section:
-#function
-fitstats <- function( model.name ) {
-  #estimate observed y
-  observed <- getY(model.name@data)
-  # estimate expected occupancy given the model
-  expected <- fitted(model.name)
-  #calculate residuals using non-parametric bootstrapping
-  resids <- residuals(model.name,
-                      method = "nonparboot")
-  #sum of squared residuals from model fit
-  sse <- sum(resids^2, na.rm = TRUE)
-  #chi-squared statistic:
-  chisq <- sum((observed - expected)^2 / expected,
-               na.rm = TRUE)
-  #free Tukeys test statistic:
-  freeTuke <- sum((sqrt(observed) - sqrt(expected))^2, 
-                  na.rm = TRUE)
-  #output from the function
-  out <- c(SSE = sse,
-           Chisq = chisq,
-           freemanTukey = freeTuke)
-  
-  return(out)
-  
-}
-# define the model that you want to calculate statistics for:
-model.name <- fm.closed
-# run 
-pb <- unmarked::parboot( model.name,
-              fitstats,
-              nsim = 100,
-              report = TRUE
-             )
-#view
-pb
-#plot distribution of estimates for each statistic:
-par(mfrow = c(3,1))
-plot(pb, xlab = c("SSE", "Chisq", "FT") )
 
 ######## end of model evaluation ##############
 ##### Producing model output ##############
@@ -178,7 +136,7 @@ pred.occ.cheat <- predict( fm.closed, type = "state", newdata = cheatData,
 
 #combine standardized predictor into a new dataframe to predict partial relationship
 # with sagebrush. We set observer effect as tech 1
-sageDet <- data.frame( obsv = factor( "tech.1", levels = c("tech.1", "tech.2",
+sageDet <- data.frame( obsv = factor( "tech.4", levels = c("tech.1", "tech.2",
                   "tech.3", "tech.4") ), sagebrush = sage.std )
 #predict partial relationship between sagebrush and detection
 pred.det.sage <- predict( fm.closed, type = "det", newdata = sageDet, 

@@ -3,7 +3,7 @@
 ##     This script was created by Dr. Jen Cruz as part of            ##
 ##            the Applied Population Ecology Class                  ###
 ##                                                                   ##  
-## Here we import our cleaned data for season 1 of our occurrence    ##
+## Here we import our cleaned data for one season of our occurrence   ##
 #  observations for Piute ground squirrels at the NCA and run a      ##
 ## closed population occupancy analysis. See Mackenzie et al. 2002   ##
 ## for details of the model. The occupancy model is hierarchical with #
@@ -39,8 +39,7 @@ head( closeddf ); dim( closeddf )
 #### End of data load -------------
 ####################################################################
 ##### Ready data for analysis --------------
-# the unmarked function has several functions to make data inport #
-# easy
+# the unmarked function has several functions to make data import easy
 # We need to define which predictors we will link to which responses #
 # We expect detection to be influenced by observer effects, but it could also #
 # be affected by amount of cover obstructing visibility (so potentially a #
@@ -56,6 +55,9 @@ umf <- unmarkedFrameOccu( y = as.matrix( closeddf[ ,c("pres.j1", "pres.j2", "pre
       siteCovs = closeddf[ ,c("sagebrush", "cheatgrass")],
     # Define predictors at the survey level as a list:
     obsCovs = list( obsv = closeddf[ ,c("observer.j1", "observer.j2", "observer.j3")] ) ) 
+# View summary of unmarked dataframe:
+summary( umf )
+
 #now scale ecological predictors:
 sc <- apply( siteCovs(umf), MARGIN = 2, FUN = scale )
 # We replace the predictors in our unmarked dataframe with the scaled values:
@@ -63,7 +65,7 @@ siteCovs( umf ) <- sc
 # Why do we scale predictors?
 # Answer:
 #
-# View summary of unmarked dataframe:
+# View summary of scaled unmarked dataframe:
 summary( umf )
 # What does it tell us?
 

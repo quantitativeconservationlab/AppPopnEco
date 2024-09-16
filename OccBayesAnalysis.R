@@ -15,6 +15,19 @@
 ## Here we examine associations between owls' occupancy and habitat   ##
 ### for detection we look at the effects of wind speed, cloud cover,   ##
 ### and day of the year.                                               ##
+# Habitat was extracted from multiple sources and was available at a 30x30 m#
+# resolution and then summarized around each site as mean percent cover #
+# using a 800 m radius surrounding each call back point. We have cover #
+# for developed areas: to describe anthropogenic development, crop:  #
+# since owls may hunt in these areas, grass: which may be used by barn owls#
+# in particular, forest: our main hypothesis is that woody veg attracts owls#
+# shrub: another form of woody encroachment, note that a cell is classified #
+# as having this particular cover if at least 20 % of it is covered by this#
+# type. Barren: describes degraded habitat, aquatic: describes wetlands #
+# including those with mangroves (another potential measure of woody veg), #
+# water: including fresh and ocean, ah: is a composite metric describing #
+# 'aplomado habitat' which includes open habitats including yuccas, 
+# lo: another composite including live oak and mesquite trees #
 ###                                                                   ###
 #########################################################################
 ########### clean workspace and load required packages ####################
@@ -71,7 +84,7 @@ barndf <- read.csv( file = paste( datadir,
 # Here we choose Great horned owls. 
 #start by viewing detection dataframe
 head( greatdf ); tail( greatdf); dim( greatdf )
-# What does this tell you about the detection data?
+# What does this tell you about the observation data?
 #Answer: 
 #
 
@@ -86,7 +99,7 @@ head( habdf )
 
 #We explore predictors
 #start by choosing which you want to look at
-prednames <- c("grass", "forest", "shrub", "ah" ) 
+prednames <- c( "crop", "aquatic", "grass", "forest", "shrub", "ah", "lo" ) 
 
 # Check correlation among predictors.
 round(cor( habdf[ , prednames] ),2)
@@ -119,11 +132,9 @@ habdf <- greatdf %>%
 #view
 head(habdf); dim(habdf)
 
-#from these habitat predictors, we choose shrub cover (%), #
-# and 'ah' which is aplomado habitat, a composite of open #
-# habitats where we expect to find Aplomado Falcons. # 
+#from these habitat predictors, choose the ones you want to include # 
 # We extract those habitats into a new dataframe
-X <- habdf[,c("shrub", "ah") ]
+X <- habdf[,c("shrub", "ah", "aquatic" ) ]
 #standardise these predictors
 X <- apply( X, MARGIN = 2, FUN = scale )
 #view
@@ -202,14 +213,14 @@ cat( "
       #priors for fixed coefficients in ecological model:
       for( b in 1:B ){ #loop over number of predictors
       
-        beta.psi[ b ] ~ dnorm( 0, 0.05 ) 
+        beta.psi[ b ] ~ dnorm( 0, 0.5 ) 
       
         #this precision is not fully uninformative but actually 
         #regularizes the estimates around 0 to help computation
       }
       
-      #priors for fixed coefficients in detection submodel:
-        alpha.p ~ dnorm( 0, 0.05 ) 
+      #priors for fixed coefficient in detection submodel:
+        alpha.p ~ dnorm( 0, 0.5 ) 
 
       #Define the ecological model for occupancy:
       for( i in 1:I ){  #loop over I number of sites
@@ -221,8 +232,7 @@ cat( "
             #probability of occupancy, psi is linked to predictors
             # using a logit function:
             logit( psi[ i ] ) <- int.psi[ yearid[i] ] + #year effect
-                  beta.psi[ 1 ] * X[ i, 1 ] + #shrub
-                  beta.psi[ 2 ] * X[ i, 2 ] #aplomado habitat
+                  inprod( beta.psi, X[ i, ] ) #habitat predictors
                   
         } #I sites
         
@@ -233,7 +243,7 @@ cat( "
             # Link probability of detection, p, to predictors 
             # using a logit function
             logit( p[ i, j ] ) <- int.p +
-                #fixed predictors
+                #fixed predictor 
                 alpha.p * wind_sc[ i, j ]  # wind
             
         #Here we link our observations to the estimated, true occupancy, z,
@@ -280,7 +290,7 @@ params <- c( 'int.psi' #intercept for occupancy model
 #create initial values for the model coefficients
 zst <- rep(1, I )
 #number of occupancy predictors
-B <- 2
+B <- dim(X)[2]
 #number of detection predictors
 A <- 1
 #create initial values to start the algorithm
@@ -301,7 +311,7 @@ str( great.data <- list( y_obs = y_obs, #observed occupancy for each species
 m_great <-  autojags( great.data, inits = inits, params, modelname, #
                  n.chains = nc, n.thin = nt, n.burnin = nb,
                  iter.increment = 20000, max.iter = 500000, 
-                 Rhat.limit = 1.02,
+                 Rhat.limit = 1.05,
                  save.all.iter = FALSE, parallel = TRUE ) 
 
 ###### end m1 ########

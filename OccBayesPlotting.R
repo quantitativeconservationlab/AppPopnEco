@@ -30,7 +30,7 @@ load( "OccBayesResults.RData" )
 mr <- m_great
 
 #view summary of results
-summary( mr )
+mr
 
 ############## trace plots ############
 #plot( mr ) #plots traces and posterior densities for all parameters
@@ -118,10 +118,10 @@ ggplot( data = p.pred, aes( x = Wind, y = Mean ) ) +
 #Start by creating a vector of predictor labels. Ensure they appear in the 
 #same order as the coefficients in submodels
 #column labels of predictors used in the model
-psilabs <- c("shrub", "ah" )
+psilabs <- c("shrub", "ah", "aquatic" )
 #Nice labels you want in your plots
 nicepsilabs <- c( 'Shrub Cover (%)',
-                  "Aplomado Habitat Cover (%)" )
+                  "Aplomado Habitat Cover (%)", "Woody wetland (%)" )
 
 #Define function
 estppreds <- function( sl = 100, int, coefs, 
