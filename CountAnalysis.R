@@ -79,6 +79,7 @@ fm.closed <- pcount( ~ 1 + obsv + time + time2
                    #Define the maximum possible abundance
                    #during the primary occasion
                     K = 40,
+                   mixture = c("P"),
                    data = umf )
 # Note that we start with the observation submodel #
 #We then define the ecological submodel 
@@ -99,6 +100,7 @@ confint( fm.closed, type = 'det' )
 #
 #What is the mean abundance from our model?
 exp(coef(fm.closed[1]))
+plogis(coef(fm.closed[2]))
 #############end full model ###########
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------

@@ -139,13 +139,12 @@ opendf %>% group_by( year, o.sites ) %>%
 #
 
 # We need to choose a year for our single season (closed population) analysis.
-# Based on the plots I will choose 2008. I think later years may require #
-# a zero-inflated Poisson model to account for all the empty sites #
+# Based on the plots I will choose 2015 #
 
 # We create our closeddf:
 closeddf <- opendf %>% 
   #filter only rows for desired year:
-  dplyr::filter( year == 2012 ) 
+  dplyr::filter( year == 2015 ) 
 
 ################################################################
 ##########    save relevant data and workspaces     ###########
