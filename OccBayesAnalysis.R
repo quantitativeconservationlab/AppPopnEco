@@ -28,7 +28,7 @@
 # water: including fresh and ocean, ah: is a composite metric describing #
 # 'aplomado habitat' which includes open habitats including yuccas, 
 # lo: another composite including live oak and mesquite trees #
-###                                                                   ###
+###                                ex                                   ###
 #########################################################################
 ########### clean workspace and load required packages ####################
 ###########################################################################

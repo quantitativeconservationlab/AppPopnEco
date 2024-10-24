@@ -215,7 +215,7 @@ m1 <- autojags( win.data, inits = inits, params, modelname, #
                 save.all.iter = FALSE, parallel = TRUE ) 
 
 #view results 
-summary(m1)
+m1
 plot(m1)
 #chat
 hist( m1$sims.list$fit / m1$sims.list$fit.new )

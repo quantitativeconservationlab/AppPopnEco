@@ -71,6 +71,7 @@ longdf <- robdf %>% pivot_longer( cols = contains("j"),
 head( longdf );dim(longdf )
 #do we have the right number of rows?
 #answer: 
+table( longdf$observer, pres )
 
 # Arrange columns in the correct order for unmarked fomatMult() function:
 longdf <- longdf %>% select( year, o.sites, survey, pres =  pres., 

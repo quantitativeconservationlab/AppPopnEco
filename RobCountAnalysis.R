@@ -10,12 +10,12 @@
 ## environmental predictors; (2) an observation submodel linking     ##
 ##  detection probability to relevant predictors.                    ##
 ##                                                                   ##
+# We will focus on linking predictors to gains instead of survival   #
 # Female Piute ground squirrels give birth to an average of 5-10 young#
-# Reproduction and survival are likely influenced by colder temperature #
-# in Feb, when they come out of hibernation.                          #                
-# Survival is likely affected by hot temperatures, with individuals   #
-# unable to forage when temperatures are too hot.                     #
-# Survival is expected to be higher in sites with more sagebrush.     #
+# Reproduction is likely more successful when the season last longer #
+# so warmer Feb temperatures will suggest quicker end of hibernation. #                
+# If Apr-May temperatures are too hot it may decrease food for young. #
+# Areas with more sagebrush may have more food sources for young.      #
 #                                                                     #
 # Detection may be related to observer effects and to time of day as a #
 # quadratic, with higher detection expected in the middle of the day, #
@@ -175,7 +175,7 @@ summary( umf )
 #     log( omega + 1) ) )
 
 # Let's start with a simple model
-fm.notrend <- pcountOpen( #lambda formula for initial abundance:
+fm.0 <- pcountOpen( #lambda formula for initial abundance:
   lambdaformula = ~1, 
   #gamma is modeled as lambda * ( 1 - omega)
   gammaformula = ~1, 
@@ -184,11 +184,11 @@ fm.notrend <- pcountOpen( #lambda formula for initial abundance:
   #detection formula:
   pformula = ~1, 
   #no trend
-  dynamics = 'notrend', 
+  dynamics = 'autoreg', 
   #Define the maximum possible abundance
-  K = 40,
+  K = 80,
   # don't calculate standard errors, which makes it run faster:
-  se = TRUE, #useful for the first run
+  se = FALSE, #useful for the first run
   # set distribution as Poisson:
   mixture = "P", #NB or ZIP also possible 
   # set to true if you want to separate migration from survival:
@@ -199,7 +199,7 @@ fm.notrend <- pcountOpen( #lambda formula for initial abundance:
   control = list( trace = TRUE, REPORT = 1) )
 
 # View model results:
-fm.notrend
+fm.0
 
 # We now run a dynamic count model from Dail-Madsen (2011) model. #
 fm.dyn0 <- pcountOpen( #lambda formula for abundance in year 1 only:
@@ -210,12 +210,14 @@ fm.dyn0 <- pcountOpen( #lambda formula for abundance in year 1 only:
   omegaformula = ~1,
   #detection formula:
   pformula = ~1,  #
+  #trend
+  dynamics = 'constant', 
   #upper bound of discrete integration. Should be higher than the maximum 
   #observed count and high enough that it does not affect #
   #parameter estimates 
-  K = 40,
+  K = 80,
   #for the first run turn off calculation of standar errors
-  se = TRUE, 
+  se = FALSE, 
   #more complicated models allow immigration to be split 
   # from births # we don't enable that here
   immigration = FALSE, 
@@ -232,8 +234,9 @@ fm.dyn <- pcountOpen( #lambda formula for initial abundance:
   lambdaformula = ~1, 
   gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT, 
   omegaformula = ~1,
-  pformula = ~1 + time,  
-  K = 40, 
+  pformula = ~1 + time,
+  dynamics = 'constant', 
+  K = 80, 
   se = FALSE, 
   immigration = FALSE,
   data = umf, 
@@ -250,7 +253,7 @@ inits <- coef( fm.dyn )
 fm.dynSE <- pcountOpen( lambdaformula = ~1, 
         gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT,
         omegaformula = ~1,  pformula = ~1 + time, 
-        K = 40, se = TRUE, data = umf,
+        K = 80, se = TRUE, data = umf,
         control = list( trace = TRUE, REPORT = 1), starts = inits )
 
 #define which model you want to view

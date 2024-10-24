@@ -30,12 +30,12 @@ load( "CountBayesResults.RData" )
 #answer: 
 
 #get summary from three models:
-summary(m1); summary(m2); summary(m3)
+m1; m2; m3
 
 # For homework you don't have to compare models since you only run one. 
 
 #define model results to plot
-mr <- m2
+mr <- m3
 
 ############## trace plots ############
 #plot( mr ) #plots traces and posterior densities for all parameters
