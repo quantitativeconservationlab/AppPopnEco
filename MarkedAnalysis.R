@@ -192,9 +192,9 @@ modSel( Mtmodels )
 # Answer:
 #
 #Now repeat for Mb models
-Mbmodels <- fitList( "M0.NB" = M0.NB, 
-                     "Mb.P" = Mt.full.P, 
-                     "Mb.NB" = Mt.full.NB 
+Mbmodels <- fitList(
+                     "Mb.P" = Mb.full.P, 
+                     "Mb.NB" = Mb.full.NB 
 )
 modSel( Mbmodels )
 ##########################################################################
