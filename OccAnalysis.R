@@ -44,10 +44,16 @@ head( closeddf ); dim( closeddf )
 # We expect detection to be influenced by observer effects, but it could also #
 # be affected by amount of cover obstructing visibility (so potentially a #
 # negative relationship with sagebrush). #
+
 # We expect occupancy to be influenced by habitat (sagebrush and cheatgrass) #
 # Why don't we include temperature in this model for one season?
 # Answer: 
 #
+# For Homework modify the code below by including the temperature metrics into
+# the occupancy model  and compare the results of the original full model 
+# with vegetation only, vs a model that includes vegetation and temperature
+# You do not need to include temperature in the model selection section #
+
 # Let's define our unmarked dataframe:
 # Start by defining which columns represent the response (observed occurrences)
 umf <- unmarkedFrameOccu( y = as.matrix( closeddf[ ,c("pres.j1", "pres.j2", "pres.j3")]),
@@ -74,7 +80,7 @@ summary( umf )
 # We are now ready to perform our analysis. Since the number of predictors #
 # is reasonable for the sample size, and there were no issues with #
 # correlation, we focus on a single full, additive model:
-fm.closed <- occu( ~ 1 + obsv + sagebrush
+fm.closed <- occu( ~ 1 + obsv + sagebrush 
                    ~ 1 + sagebrush + cheatgrass, data = umf )
 # Note that we start with the observation submodel, linking it to the intercept # 
 # and observer effect, obsv. We then define the ecological submodel as related #
@@ -96,11 +102,14 @@ confint( fm.closed, type = 'det' )
 # can you suggest which may be important to each of your responses? #
 # Answer:
 # 
+
 #############end full model ###########
 ###### Model selection ---------------------------------------
 # Indiscriminate model selection has become popular in recent years. #
 # Although we do not believe this is a suitable approach here, we #
 # demonstrate two approaches for running various reduced, additive models: #
+
+### Do not include temperature metrics for the rest of this script
 
 # We start by manually running alternative models:
 ( fm.2 <- occu( ~ 1 + obsv + sagebrush  ~ 1 + sagebrush, data = umf ) )
@@ -204,7 +213,7 @@ backTransform( linearComb( fm.closed, coefficients = c(1,0,0,1,0), type = "det" 
 backTransform( linearComb( fm.closed, coefficients = c(1,0,0,0,1), type = "det" ) )
 
 # What do these results tell us about what drives occupancy and detection of #
-# Piute ground squirrels in 2007?
+# Piute ground squirrels in 2018?
 # Answer:
 #
 
