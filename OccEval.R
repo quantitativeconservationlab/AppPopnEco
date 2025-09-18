@@ -84,13 +84,19 @@ unmarked::modSel(rms, nullmod = "psi(.)p(.)" )
 # What does this tell us about the fit of our model?
 # Answer:
 #
+# For homework compare the full model against the 'top' model selected by 
+#model selection last week here:
+#
+
+# Did the top model explain any more variation than the full model?
+# Answer:
+# 
+
 # Note that there are multiple approaches for estimating pseudo-Rsquares. See:
 # https://stats.idre.ucla.edu/other/mult-pkg/faq/general/faq-what-are-pseudo-r-squareds/
 # We chose the one available in unmarked but like everything, it should be #
 # taken with a grain of salt. 
 
-# We could also compare all the models we run against our null:
-modSel(fms, nullmod = "psi(.)p(.)" )
 
 ######## end of model evaluation ##############
 ##### Producing model output ##############
@@ -106,50 +112,88 @@ modSel(fms, nullmod = "psi(.)p(.)" )
 # What is the mean of our predictors?
 # Answer:
 #
-# To create nice plots we need to create new vectors with evenly #
-# spaced predictors within their actual observed range: #
-# how many values do we use:
+# For our occupancy submodel we have two continuous predictors so we can #
+# create a partial plot of each while keeping the other predictor at the #
+# mean value. 
+
+# To create nice plots we first need to create new vectors with evenly #
+# spaced values for our continuous predictors within their actual observed range: #
+# Why do we not predict outside the observed range?
+# Answer:
+# 
+
+# we start choosing the number of values we want to predict over:
 n <- 100
-# we use the observed values to define our range:
+# start with sagebrush
+# we use our data (unscaled) to extract the observed range of the predictor:
 sagebrush <- seq( min( closeddf[,"sagebrush"]),max( closeddf[,"sagebrush"]),
                   length.out = n )
-cheatgrass <- seq( min( closeddf[,"cheatgrass"]),max( closeddf[,"cheatgrass"]),
-                   length.out = n )
-#standardize them
+#view
+sagebrush
+#standardize these values
 sage.std <- scale( sagebrush )
-cheat.std <- scale( cheatgrass )
-#combine standardized predictor into a new dataframe to predict partial relationship
-# with sagebrush. We replace value of other predictor with its mean
+#view
+sage.std
+
+#combine standardized predictor with other predictors in the model, kept at #
+# their standardized mean:
 sageData <- data.frame( sagebrush = sage.std, cheatgrass = 0 )
-#predict partial relationship between sagebrush and occupancy
+# Note that you have to label the  columns exactly the same as the names of your
+# predictors in the model
+
+#Use predict function to predict expected probability of occupancy across the 
+# range of values you determine above for your predictor of interest, while 
+# keeping other predictors at their mean:
 pred.occ.sage <- predict( fm.closed, type = "state", newdata = sageData, 
                           appendData = TRUE )
-#view
+# Note that you have to define which submodel you want to use for the prediction
+# using the type = 'state' 
+#view results
 head( pred.occ.sage ); dim( pred.occ.sage )
 
-#combine standardized predictor into a new dataframe to predict partial relationship
-# with cheatgrass. We replace value of other predictor with its mean
-cheatData <- data.frame( sagebrush = 0, cheatgrass = cheat.std )
-#predict partial relationship between sagebrush and occupancy
-pred.occ.cheat <- predict( fm.closed, type = "state", newdata = cheatData, 
-                          appendData = TRUE )
+### now replicate the process of predicting occupancy for observed values
+# of cheatgrass here:
+#Answer: 
+#
 
-#combine standardized predictor into a new dataframe to predict partial relationship
-# with sagebrush. We set observer effect as tech 1
+### In our detection submodel we have a combination of continuous and #
+# categorical predictors (where one level is the intercept) so we need # 
+# to choose a level of categorical if we want to predict over the continuous #
+# predictor
+
+#sagebrush is also in the detection model so we don't have to re-create a new 
+# vector to use it here. We use the same vector and combine it into a new dataframe
+# with the other predictors in the detection model. Because they are categorical, 
+# we need to chooose a reference category. Here we set it as tech 4:
 sageDet <- data.frame( obsv = factor( "tech.4", levels = c("tech.1", "tech.2",
                   "tech.3", "tech.4") ), sagebrush = sage.std )
-#predict partial relationship between sagebrush and detection
+
+#view
+head( sageDet )
+#can you see that we still need to provide all levels because it is a factor #
+# even though only one is chosen as the output?
+
+#predict partial relationship between sagebrush and detection probability 
+# using the predict function
 pred.det.sage <- predict( fm.closed, type = "det", newdata = sageDet, 
                           appendData = TRUE )
-#now for observer effects:
+# note that we define which submodel we want to use with type = 'det
+
+#now if we want to look at differences in detection for the different levels
+# of the categorical variable, we create a dataframe that varies those levels
+# and keep the other predictors in that submodel at their mean value:
 obsvDet <- data.frame( obsv = factor( c("tech.1", "tech.2","tech.3", "tech.4"), 
                        levels = c("tech.1", "tech.2","tech.3", "tech.4") ), 
                       sagebrush = 0 )
-#predict partial relationship between observer effects and detection
+#view
+obsvDet
+#Now predict partial relationship between observer effects and detection
 pred.det.obsv <- predict( fm.closed, type = "det", newdata = obsvDet, 
                           appendData = TRUE )
+#view
+pred.det.obsv
 
-# create plots
+####### We are ready to visualize our results  #######
 #Starting with sagebrush and occupancy:
 # select the predicted values we want to plot and combine with unscaled predictor
 sagep <- cbind( pred.occ.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %>%
@@ -168,26 +212,12 @@ sagep <- cbind( pred.occ.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %
 #view
 sagep
 
-#Now cheatgrass and occupancy:
-# select the predicted values we want to plot and combine with unscaled predictor
-cheatp <- cbind( pred.occ.cheat[,c("Predicted", "lower", "upper") ], cheatgrass ) %>%
-  # define x and y values
-  ggplot(., aes( x = cheatgrass, y = Predicted ) ) + 
-  #choose preset look
-  theme_bw( base_size = 15 ) +
-  # add labels
-  labs( x = "Cheatgrass (%)", y = "Predicted occupancy" ) +
-  # add band of confidence intervals
-  geom_smooth( aes(ymin = lower, ymax = upper ), 
-               stat = "identity",
-               size = 1.5, alpha = 0.5, color = "grey" ) +
-  # add mean line on top
-  geom_line( size = 2 ) 
-#view
-cheatp
+#Now add the plot for cheatgrass:
+# Answer:
+#
 
-# Now sagebrush and detection:
-# select the predicted values we want to plot and combine with unscaled predictor
+# visualize partial plots for detection
+# Start with sagebrush:
 sagep.det <- cbind( pred.det.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %>%
   # define x and y values
   ggplot(., aes( x = sagebrush, y = Predicted ) ) + 
@@ -204,7 +234,7 @@ sagep.det <- cbind( pred.det.sage[,c("Predicted", "lower", "upper") ], sagebrush
 #view
 sagep.det
 
-# Now observer and detection:
+# Now observer effects:
 obsvp.det <- pred.det.obsv %>%
   # define x and y values
   ggplot(., aes( x = obsv, y = Predicted, color = obsv ) ) + 
