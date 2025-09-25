@@ -26,7 +26,7 @@ load( "OccBayesResults.RData" )
 #################### viewing model results ####################################
 ##################################################################################
 # Define model results to plot
-# Choose either m_barn or m_great
+#Choose the model that you want to plot results for here:
 mr <- m_great
 
 #view summary of results
@@ -65,6 +65,11 @@ whiskerplot( mr, parameters = c( "p" ) )
 #predictors were not that important. We choose to plot #
 # the relationship with day of survey as a way of demonstrating #
 # the process
+
+# Were your detection predictors important for the Barn Owl model?
+# if so plot figure below. Otherwise, move to plotting results 
+# from the occupancy submodel
+
 head( detdf)
 #how many predictions do we want?
 n <- 100
@@ -122,6 +127,9 @@ psilabs <- c("shrub", "ah", "aquatic" )
 #Nice labels you want in your plots
 nicepsilabs <- c( 'Shrub Cover (%)',
                   "Aplomado Habitat Cover (%)", "Woody wetland (%)" )
+
+# if you want to use results from the barn owl model then you modify 
+# psilabs and nicepsilabs above and not the function below. 
 
 #Define function
 estppreds <- function( sl = 100, int, coefs, 

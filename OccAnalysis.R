@@ -178,11 +178,11 @@ re <- ranef( fm.closed )
 # the use those to estimate occupancy with the bup() function:
 y.est.fm.closed <-round( bup(re, stat="mean" ) ) # Posterior mean
 # Repeat this process for other top model and the null:
-y.est.fm.5 <-round( bup(ranef(fm.5), stat="mean" ) ) # Posterior mean
+y.est.fm.8 <-round( bup(ranef(fm.5), stat="mean" ) ) # Posterior mean
 y.est.fm.16 <-round( bup(ranef(fm.16), stat="mean" ) ) # Posterior mean
 # Compare results among them:
 y.est.fm.closed - y.naive
-y.est.fm.closed - y.est.fm.5
+y.est.fm.closed - y.est.fm.8
 y.est.fm.closed - y.est.fm.16
 #view together
 data.frame( y.naive, y.est.fm.closed, y.est.fm.5, y.est.fm.16 )

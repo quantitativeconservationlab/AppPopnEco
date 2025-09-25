@@ -23,7 +23,7 @@ load( "OccBayesResults.RData" )
 ################################################################################
 #################### viewing model results ####################################
 ##################################################################################
-#define model object
+#define which model you want to evaluate here:
 mr <- m_great
 
 #Total number of iterations ran:
@@ -34,13 +34,14 @@ dim(mr$sims.list$lik_yhat)
 ########################################################################
 ## Calculating deviance from likelihood of data conditional on model ###
 ########################################################################
-#pick columns of interest from datadf
+#pick id columns from your original dataframe
 evaldf <- detdf %>% 
     dplyr::select( Site.ID, yearid, siteyear_id )
 head( evaldf )
 #add likelihood values
 
-# Define function to calculate Model deviances 
+# This function calculates Model deviances (differences in likelihood between 
+# observed and predicted detections) 
 CalcDevs <- function( lik_yobs, lik_yhat )
   {
   #lik_yobs: likelihood of observed data

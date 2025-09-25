@@ -213,14 +213,14 @@ cat( "
       #priors for fixed coefficients in ecological model:
       for( b in 1:B ){ #loop over number of predictors
       
-        beta.psi[ b ] ~ dnorm( 0, 0.5 ) 
+        beta.psi[ b ] ~ dnorm( 0, 0.2 ) 
       
         #this precision is not fully uninformative but actually 
         #regularizes the estimates around 0 to help computation
       }
       
       #priors for fixed coefficient in detection submodel:
-        alpha.p ~ dnorm( 0, 0.5 ) 
+        alpha.p ~ dnorm( 0, 0.2 ) 
 
       #Define the ecological model for occupancy:
       for( i in 1:I ){  #loop over I number of sites
@@ -315,6 +315,10 @@ m_great <-  autojags( great.data, inits = inits, params, modelname, #
                  save.all.iter = FALSE, parallel = TRUE ) 
 
 ###### end m1 ########
+# For homework adapt the code here for barn owls. 
+# this includes selecting the barn owl detections, choosing different 
+# occupancy predictors and modifying the JAGs code accordingly
+
 ##################################################################
 ### save workspace ###
 save.image( "OccBayesResults.RData" )
