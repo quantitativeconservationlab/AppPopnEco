@@ -57,7 +57,10 @@ head( robdf ); dim( robdf )
 # provides food, and cover from weather and predators. Years with cooler summers#
 # may increase survival of young, and therefore the amount of individuals, #
 # spreading to new areas.
-
+#
+# What about our temperature metrics? 
+# Where should they go?
+#
 # Detection:
 # We expect observer effects influence detection. We also test the #
 # effects of sagebrush again. #
@@ -71,7 +74,7 @@ longdf <- robdf %>% pivot_longer( cols = contains("j"),
 head( longdf );dim(longdf )
 #do we have the right number of rows?
 #answer: 
-table( longdf$observer, pres )
+table( longdf$observer., longdf$pres. )
 
 # Arrange columns in the correct order for unmarked fomatMult() function:
 longdf <- longdf %>% select( year, o.sites, survey, pres =  pres., 
@@ -144,7 +147,7 @@ confint( fm.dyn, type = 'det' )
 # from the model. These estimates are then used to compute the predicted and #
 # observed frequencies separately within each season. The chi-squares are then #
 # summed to be used as the test statistic for the dynamic occupancy model.
-gof.boot <- AICcmodavg::mb.gof.test( fm.dyn, nsim = 1000, print.table = TRUE )
+gof.boot <- AICcmodavg::mb.gof.test( fm.dyn, nsim = 100, print.table = TRUE )
 #view
 gof.boot
 # What does the output tell us about our model fit?
@@ -269,7 +272,7 @@ cheatp
 # How would you interpret this relationship?
 # Answer:
 # 
-# On your own, plot partial predictions for your detection submodel. 
+# On your own, plot partial predictions for the detection submodel. 
 # Which partial prediction plots are you focusing on and why?
 # Answer:
 #
