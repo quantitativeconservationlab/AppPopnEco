@@ -7,7 +7,7 @@
 ## Bayesian framework. The analysis was part of Cruz et. al 2023    ## 
 ## Avian Conservation & Ecology manuscript evaluating the potential ##
 ## impacts of Bald Eagles on survival of Common Loon chicks once they ##
-## enter the water the day of hatching.Chicks were monitored over three ##
+## enter the water the day of hatching. Chicks were monitored over three ##
 ### years from when entered the water until they were expected to fletch #
 # at 6 weeks of age. When two chicks from a single nest hatched and #
 ## entered the water successfully, they could not be identified     #
@@ -63,7 +63,7 @@ raw_df <- read.csv( file = paste( datadir, "indvdf.csv", sep = ""),
 #create clean dataframe to store data from the imported one
 chickdf <- raw_df 
 #view
-head( chickdf ); dim( chickdf )
+head( chickdf,15 ); dim( chickdf )
 
 ##define general parameters 
 #number of territories monitored:
@@ -72,10 +72,6 @@ M <- max( chickdf$terid )
 yrrange <- sort( unique( chickdf$yrid ) ) 
 #total number of years sampled:
 K <- max( chickdf$yrid )
-# #max number of days a territory was monitored
-# J <- max( chickdf$CumMon )
-#OR if you want to truncate to a particular period then 
-# specify that here
 # We want survival for the first 6 weeks
 J <- 42
 #number of individual chicks
@@ -108,6 +104,9 @@ for( n in 1:N ){
 }
 #make first survey 1
 z_obs[ , 1 ] <- 1
+
+#check that it worked:
+z_obs[1:5,]
 
 #extract site-level (territory) covariates
 head( chickdf )
@@ -165,12 +164,21 @@ for( n in 1:dim( lastdf )[1] ){
 }
 
 #check 
-agemat[ 1:10, ]
+agemat[ 50:60, ]
 
 #standardize matrices
 AgeMat <- standardise( agemat[,], stdevs = 1, marg = c( 1, 2 ) )
 #check
 AgeMat[1:10,]
+
+#create a vector for when chick turns 41 days old 
+#create empty vector 
+forties <- rep(NA, N)
+#fill it with  the column number that each row hits 41 days old 
+for (n in 1:N) {
+  forties[n] <- which(agemat[n,] == 41)
+}
+forties
 
 ########################################################################
 ############################################################################
@@ -192,13 +200,22 @@ cat( "
       for( q in 1:Q ){ #loop over number of predictors
         beta[ q ] ~ dnorm( 0, 0.1 ) 
       } #Q
-
+      #what is the variance assigned to the fixed effect coefficients?
+      #Answer:
+      # 
+      # Adapt precision to another value and provide 
+      # some reasons for your choice
+      
       # priors linked to detection 
       #detection intercept as mean detection probability:
       int.p <- logit( mean.p )
       #mean prob of detecting a post-fledgling young in the water
       mean.p ~ dbeta( 4, 4 ) 
-     
+      
+      # we expected mean detection to be high. Adapt your intercept prior
+      # to accommodate this prior expectation
+      
+      
       #random territory intercepts
       for ( m in 1:M ){  #loop over species
         eps.p.M[ m ] ~ dnorm( 0, prec.eps.p.M ) T(-7, 7) 
@@ -228,6 +245,11 @@ cat( "
               #fixed predictors: 
               #hatching date, distance to eagle nest, inv dist weight to eagle nests
               inprod( beta[ 1:(Q-1) ], XN[ n, 1:(Q-1) ] ) + 
+              
+              #modify the inprod above to instead list each coefficient and
+              #predictor. Similarly to how age is provided below. Beware
+              # of the dimensions!
+              
                #age of young
               beta[ Q ] * AgeMat[ n, j-1 ] #
         } #J
@@ -255,7 +277,7 @@ cat( "
      for( n in 1:N ){
      
       #probability of survival to 6 weeks of age
-      surv6wk[ n ] <- prod( phi[ n, 1:( J - 1 ) ] )
+      surv6wk[ n ] <- prod( phi[ n, 1:( forties[n] - 1 ) ] )
       
     }#N
      } #model close
@@ -290,14 +312,15 @@ str( win.data <- list( y_obs = y_obs, #observed survival
                        N = N, M = M, J = J, Q = Q,
                        XN = XN, #individual level predictors
                        AgeMat = AgeMat, 
-                       siteid = lastdf$terid #territory id for random intercepts
+                       siteid = lastdf$terid, #territory id for random intercepts
+                       forties = forties
 ) )     
 
 #call JAGS and summarize posteriors:
 m1 <- autojags( win.data, inits = inits, params, modelname, #
                  n.chains = 3, n.thin = 20,  n.burnin = 50000,
                  iter.increment = 20000, max.iter = 500000, 
-                 Rhat.limit = 1.02,
+                 Rhat.limit = 1.1,
                  save.all.iter = FALSE, parallel = TRUE ) 
 
 m1 <- update( m1, parameters.to.save= params,

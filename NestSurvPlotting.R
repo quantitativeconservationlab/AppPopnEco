@@ -29,7 +29,7 @@ load( "SurvivalResults.RData" )
 #define model results to plot
 mr <- m1
 #Total number of iterations ran:
-N <- mr$mcmc.info$n.samples
+S <- mr$mcmc.info$n.samples
 
 #extract summary results
 summary( mr )
@@ -68,6 +68,7 @@ whiskerplot( mr, parameters = c( 'int.phi', 'beta' ) ,
 
 #survival at 6 weeks
 whiskerplot( mr, parameters = c( 'surv6wk') )
+
 ##### end whiskeplots #####
 
 ###################################################################################
@@ -75,19 +76,9 @@ whiskerplot( mr, parameters = c( 'surv6wk') )
 ############
 head( chickdf ); head( XN )
 
-#define range for important variables in survival model:
-#hatching date
-hatch <- seq( min( chickdf$hatchDay), max( chickdf$hatchDay ), 
-              by = 1 )
-sclhatch <- scale( hatch )
 #chick age:
 age <- seq( 1, length( hatch ), by = 1 )
 sclage <- scale( age )
-
-#distance to eagle nest:
-dis <- seq( min( chickdf$MinDistOccEgl), max( chickdf$MinDistOccEgl), 
-            length.out =  length( hatch ) )
-scldis <- scale( dis )
 
 #delta: inverse weight of eagle nest density:
 delta <- seq( min( chickdf$DeltaOccEgl), max( chickdf$DeltaOccEgl), 
@@ -96,14 +87,6 @@ scldelta <- scale( delta )
 
 #intercept for covariate matrix 
 phiint <- rep( 1, length( hatch ) )
-#join intercept with relevant predictor components
-phi.hatch <- cbind( mr$sims.list$int.phi, mr$sims.list$beta[,1] ) %*%
-              t( cbind( phiint, sclhatch ) )
-#calculate its mean and get inverse logit
-phi.hatch.m <- plogis( apply( phi.hatch, MARGIN = 2, FUN = mean ) )
-#calculate 95% CIs and get inverse logit:
-phi.hatch.CI <- plogis( apply( phi.hatch, MARGIN = 2,
-                   FUN = quantile, probs = c(0.025, 0.975) ) )
 # for age
 phi.age <- cbind( mr$sims.list$int.phi, mr$sims.list$beta[,4] ) %*%
             t( cbind( phiint, sclage ) )
@@ -111,15 +94,6 @@ phi.age <- cbind( mr$sims.list$int.phi, mr$sims.list$beta[,4] ) %*%
 phi.age.m <- plogis( apply( phi.age, MARGIN = 2, FUN = mean ) )
 #calculate its 95% CIs and get its inverse logit:
 phi.age.CI <- plogis( apply( phi.age, MARGIN = 2,
-               FUN = quantile, probs = c(0.025, 0.975) ) )
-
-# for distance to eagle nest
-phi.dis <- cbind( mr$sims.list$int.phi, mr$sims.list$beta[,2] ) %*%
-            t( cbind( phiint, scldis ) )
-#calculate its mean and get inverse logit
-phi.dis.m <- plogis( apply( phi.dis, MARGIN = 2, FUN = mean ) )
-#calculate its 95% CIs and get its inverse logit:
-phi.dis.CI <- plogis( apply( phi.dis, MARGIN = 2,
                FUN = quantile, probs = c(0.025, 0.975) ) )
 # for delta of eagle nest
 phi.delta <- cbind( mr$sims.list$int.phi, mr$sims.list$beta[,3] ) %*%
@@ -131,31 +105,23 @@ phi.delta.CI <- plogis( apply( phi.delta, MARGIN = 2,
               FUN = quantile, probs = c(0.025, 0.975) ) )
 
 #combine predicted estimates into a dataframe
-phi.rships <- data.frame( sclhatch, hatch, sclage, age, 
-                          scldis, dis, scldelta, delta,
-                          phi.hatch.m, t( phi.hatch.CI ),
+phi.rships <- data.frame(  sclage, age, 
+                           scldelta, delta,
                           phi.age.m, t( phi.age.CI ),
-                          phi.dis.m, t( phi.dis.CI ),
                           phi.delta.m, t( phi.delta.CI ) )
 
 #view
 head( phi.rships )
+## calculate relationships with hatch date and distance to eagle nests 
+# and add to the phi.rships dataframe 
 
 #plot 
 phip <- ggplot( data = phi.rships ) + theme_classic() +
   theme( legend.position = "none", 
          text = element_text( size = 18 ), 
-         axis.line = element_line( size = 1.3 ) ) 
+         axis.line = element_line( linewidth = 1.3 ) ) 
 phip
 
-#hatching plot
-hatchp <- phip + #+ ylim( 0, 1 ) 
-  xlab( "Julian hatching day" ) + #xlim( 0,42 ) +
-  geom_line( aes( x = hatch, y = phi.hatch.m ), size = 1.2 ) +
-  geom_ribbon( alpha = 0.4, aes( x = hatch, ymin = X2.5., ymax = X97.5. ) ) + #, 
-  ylab( "Daily survival probability" ) #+ ylim( 0, 0 ) 
-
-hatchp
 #age
 agep <- phip + #+ ylim( 0, 1 ) 
   xlab( "Age (days)" ) + xlim( 0,42 ) +
@@ -163,12 +129,6 @@ agep <- phip + #+ ylim( 0, 1 )
   geom_ribbon( alpha = 0.4, aes( x = age, ymin = X2.5..1, ymax = X97.5..1 ) ) + #, 
   ylab( "Daily survival probability" ) #+ ylim( 0, 0 ) 
 agep
-#distance
-disp <- phip + #+ ylim( 0, 1 ) 
-  xlab( "Distance to eagle nest (km)" ) + #xlim( 0,42 ) +
-  geom_line( aes( x = dis, y = phi.dis.m ), size = 1.2 ) +
-  geom_ribbon( alpha = 0.4, aes( x = dis, ymin = X2.5..2, ymax = X97.5..2 ) ) + #, 
-  ylab( "Daily survival probability" ) #+ ylim( 0, 0 ) 
 
 #delta
 deltap <- phip + #+ ylim( 0, 1 ) 
@@ -176,5 +136,9 @@ deltap <- phip + #+ ylim( 0, 1 )
   geom_line( aes( x = delta, y = phi.delta.m ), size = 1.2 ) +
   geom_ribbon( alpha = 0.4, aes( x = delta, ymin = X2.5..3, ymax = X97.5..3 ) ) + #, 
   ylab( "Daily survival probability" ) #+ ylim( 0, 0 ) 
+deltap
 
 ###### end of pred rship plots #####
+
+
+################## end of script ##############################################
