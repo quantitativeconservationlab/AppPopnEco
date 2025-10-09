@@ -75,18 +75,18 @@ whiskerplot( mr, parameters = c( 'surv6wk') )
 ################# plot partial-predicted relationships ###########
 ############
 head( chickdf ); head( XN )
-
+x = 41
 #chick age:
-age <- seq( 1, length( hatch ), by = 1 )
+age <- seq( 1, x, by = 1 )
 sclage <- scale( age )
 
 #delta: inverse weight of eagle nest density:
 delta <- seq( min( chickdf$DeltaOccEgl), max( chickdf$DeltaOccEgl), 
-              length.out =  length( hatch ) )
+              length.out =  x )
 scldelta <- scale( delta )
 
 #intercept for covariate matrix 
-phiint <- rep( 1, length( hatch ) )
+phiint <- rep( 1, x )
 # for age
 phi.age <- cbind( mr$sims.list$int.phi, mr$sims.list$beta[,4] ) %*%
             t( cbind( phiint, sclage ) )
@@ -113,7 +113,7 @@ phi.rships <- data.frame(  sclage, age,
 #view
 head( phi.rships )
 ## calculate relationships with hatch date and distance to eagle nests 
-# and add to the phi.rships dataframe 
+
 
 #plot 
 phip <- ggplot( data = phi.rships ) + theme_classic() +
@@ -126,7 +126,7 @@ phip
 agep <- phip + #+ ylim( 0, 1 ) 
   xlab( "Age (days)" ) + xlim( 0,42 ) +
   geom_line( aes( x = age, y = phi.age.m ), size = 1.2 ) +
-  geom_ribbon( alpha = 0.4, aes( x = age, ymin = X2.5..1, ymax = X97.5..1 ) ) + #, 
+  geom_ribbon( alpha = 0.4, aes( x = age, ymin = X2.5., ymax = X97.5. ) ) + #, 
   ylab( "Daily survival probability" ) #+ ylim( 0, 0 ) 
 agep
 
@@ -134,7 +134,7 @@ agep
 deltap <- phip + #+ ylim( 0, 1 ) 
   xlab( "Nearby density of eagle nests" ) + #xlim( 0,42 ) +
   geom_line( aes( x = delta, y = phi.delta.m ), size = 1.2 ) +
-  geom_ribbon( alpha = 0.4, aes( x = delta, ymin = X2.5..3, ymax = X97.5..3 ) ) + #, 
+  geom_ribbon( alpha = 0.4, aes( x = delta, ymin = X2.5..1, ymax = X97.5..1 ) ) + #, 
   ylab( "Daily survival probability" ) #+ ylim( 0, 0 ) 
 deltap
 

@@ -236,7 +236,7 @@ cat( "
      
       #likelihood
       #ecological survival model
-      for( n in 1:N ) { #loop over years
+      for( n in 1:N ) { #loop over individuals
         for( j in 2:J ){ #loop over monitoring days
           #latent, true survival
           z[ n, j ] ~ dbern( phi[ n, j-1 ] * z[ n, j-1 ] ) 
@@ -296,7 +296,7 @@ params <- c( 'surv6wk' #6 week post-fledgling survival
              , 'eps.p.J' #random monitoring day intercepts 
              , 'sigma.eps.p.M' #std devs for random intercepts
              , 'sigma.eps.p.J' #std devs for random intercepts
-             , 'phi' #estimated survival probability [n,j]
+#             , 'phi' #estimated survival probability [n,j]
              , 'z' #estimated survival[n,j]
              , 'p' #estimated detection [m,j]
 )
@@ -319,12 +319,12 @@ str( win.data <- list( y_obs = y_obs, #observed survival
 #call JAGS and summarize posteriors:
 m1 <- autojags( win.data, inits = inits, params, modelname, #
                  n.chains = 3, n.thin = 20,  n.burnin = 50000,
-                 iter.increment = 20000, max.iter = 500000, 
+                 iter.increment = 20000, max.iter = 100000, 
                  Rhat.limit = 1.1,
                  save.all.iter = FALSE, parallel = TRUE ) 
 
 m1 <- update( m1, parameters.to.save= params,
-                  n.iter = 1000000, n.thin = 20 )
+                  n.iter = 200000, n.thin = 20 )
             
 ###### end sm1 ########
 
