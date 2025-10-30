@@ -217,7 +217,7 @@ timep <- cbind( pred.time[,c("Predicted", "lower", "upper") ], Time ) %>%
   #choose preset look
   theme_bw( base_size = 15 ) +
   # add labels
-  labs( x = "Time (mins pass 6:00am)", y = "Probability of Occupancy" ) +
+  labs( x = "Time (mins pass 6:00am)", y = "Probability of Detection" ) +
   # add band of confidence intervals
   geom_smooth( aes(ymin = lower, ymax = upper ), 
                stat = "identity",
