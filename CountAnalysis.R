@@ -89,7 +89,7 @@ fm.closed <- pcount( ~ 1 + obsv + time + time2
                    ~ 1 + sagebrush + cheatgrass, 
                    #Define the maximum possible abundance
                    #during the primary occasion
-                    K = 40,
+                    K = 80,
                    mixture = c("P"),
                    data = umf )
 # Note that we start with the observation submodel #
@@ -111,7 +111,7 @@ confint( fm.closed, type = 'det' )
 #
 #What is the mean abundance from our model?
 exp(coef(fm.closed[1]))
-plogis(coef(fm.closed[2]))
+plogis(coef(fm.closed[2] ) )
 #############end full model ###########
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
@@ -136,7 +136,7 @@ gof.boot
 # pp. 691-692.#
 # We run the null model
 fm.null <- pcount( ~ 1 ~ 1,
-            K = 40, data = umf )
+            K = 80, data = umf )
 #view
 fm.null
 # Now build the list with the two models of interest:
@@ -168,6 +168,7 @@ residfit( fm.closed, type = 'observation' )
 # What did Knape et al. 2018 say these residuals were useful for?
 # Answer:
 #
+
 # Niw plot Qq plots of randomized residuals against standard normal quantiles. #
 # Under a good fit, residuals should be close to the identity line. 
 residqq( fm.closed, type = 'site-sum' )
@@ -222,9 +223,12 @@ timep <- cbind( pred.time[,c("Predicted", "lower", "upper") ], Time ) %>%
                stat = "identity",
                size = 1.5, alpha = 0.5, color = "grey" ) +
   # add mean line on top
-  geom_line( size = 2 ) 
+  geom_line( linewidth = 2 ) 
 #view
 timep
+
+# choose one more predictor to plot marginalized effects for. 
+# Answer:
 
 ############################################################################
 ################## Save your data and workspace ###################
