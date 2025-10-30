@@ -41,6 +41,17 @@ closeddf <- read.csv( file = paste( datadir, "closed_counts.csv", sep = ""),
 #view
 head( closeddf ); dim( closeddf ) 
 #### End of data load -------------
+########### standardising functions  #################
+#genetic function to standardise covariates using Gelman's suggestion:
+standardise <- function( xmat, stdevs = 2, marg = c( 1, 2, 3 ) ) { 
+  mean.xmat = mean( as.vector( xmat ), na.rm = TRUE )
+  sd.xmat = sd( as.vector( xmat ), na.rm = TRUE ) 
+  std.xmat = apply( xmat, marg, function( x ){
+    ( x - mean.xmat ) / (stdevs * sd.xmat ) } )
+  return( std.xmat )
+}
+###################################################################
+
 ####################################################################
 ##### Ready data for analysis --------------
 # Let's define our unmarked dataframe:
@@ -58,16 +69,16 @@ umf <- unmarkedFramePCount(
 # View summary of unmarked dataframe:
 summary( umf )
 #now scale ecological predictors:
-sc <- apply( siteCovs(umf), MARGIN = 2, FUN = scale )
+#sc <- apply( siteCovs(umf), MARGIN = 2, FUN = scale )
+scsage <- standardise( as.matrix(siteCovs(umf)[,"sagebrush"]), stdevs = 2, marg = 2 )
+sccheat <- standardise( as.matrix(siteCovs(umf)[,"cheatgrass"]), stdevs = 2, marg = 2 )
 # We replace the predictors in our unmarked dataframe with the scaled values:
-siteCovs( umf ) <- sc
+siteCovs( umf )[,c("sagebrush","cheatgrass") ] <- cbind(scsage, sccheat)
 #now for time:
-timesc <- as.vector(scale( obsCovs(umf)[2] ))
+sctime <- standardise( as.matrix( obsCovs(umf)[,c("time") ] ), marg = 2 )
+sctime2 <- standardise( as.matrix( obsCovs(umf)[,c("time2") ] ), marg = 2 )
 #replace with scaled values:
-obsCovs(umf)[2] <- timesc
-time2sc <- as.vector(scale( obsCovs(umf)[3] ))
-#replace with scaled values:
-obsCovs(umf)[3] <- time2sc
+obsCovs(umf)[,c("time","time2") ] <-cbind(sctime, sctime2)
 
 #recheck
 summary( umf )
@@ -188,8 +199,8 @@ closeddf %>% select( time.j1, time.j2, time.j3 ) %>%
 #use them to define your bounds:
 Time <- round(seq( 0, 360, length.out = n ),0)
 Time2 <- Time^2
-time.std <- scale( Time )
-time2.std <- scale( Time2 )
+time.std <- standardise( as.matrix(Time), marg = 2 )
+time2.std <- standardise( as.matrix(Time2), marg=2 )
 # now for detection
 detData <- data.frame( obsv = factor(c("tech.1", "tech.1","tech.1", "tech.1"), 
               levels = c("tech.1", "tech.2","tech.3", "tech.4") ), 

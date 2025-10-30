@@ -9,7 +9,7 @@
 # they emerge from hibernation in Feb and high temperatures in        #
 # in April-May                                                        #
 # 50 sites were randomly selected for repeated count surveys over     #
-# three days. Surveys were repeated over multiple years ()            #
+# three days. Surveys were repeated over multiple years (2007-2018)            #
 # Surveys involved point counts for 2min where all individuals detected #
 # over a 200 m radius were recorded.                                  # 
 #######################################################################
@@ -28,7 +28,7 @@ library( tidyverse )
 # I have it in a Data folder in my Rstudio project:
 datadir <- paste( getwd(), "/Data/", sep = "" )
 
-# load observed occurrences:
+# load observed counts:
 obs_df <- read.csv( file = paste( datadir, "obs_df.csv", sep = ""),
                     header = TRUE )
 
@@ -104,7 +104,6 @@ J <- 3
 I; yrrange; T; J
 
 ###########
-
 # We now need to decide which year to use for our closed analysis ###
 # let's work out what our counts look like each year:
 # we use our opendf and group by year by site:
