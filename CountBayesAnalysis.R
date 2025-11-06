@@ -211,7 +211,7 @@ str( win.data <- list( y_obs = as.matrix( closeddf[ ,yidx] ),
 m1 <- autojags( win.data, inits = inits, params, modelname, #
                 n.chains = 5, n.thin = 10, n.burnin = 20000,
                 iter.increment = 10000, max.iter = 500000, 
-                Rhat.limit = 1.05,
+                Rhat.limit = 1.1,
                 save.all.iter = FALSE, parallel = TRUE ) 
 
 #view results 
@@ -340,7 +340,7 @@ params <- c(  'int.det' #intercept for detection
 m2 <- autojags( win.data, inits = inits, params, modelname, #
                 n.chains = 5, n.thin = 10, n.burnin = 20000,
                 iter.increment = 10000, max.iter = 500000, 
-                Rhat.limit = 1.05,
+                Rhat.limit = 1.1,
                 save.all.iter = FALSE, parallel = TRUE ) 
 
 #view
@@ -462,7 +462,7 @@ params <- c(  'int.det' #intercept for detection
 m3 <- autojags( win.data, inits = inits, params, modelname, #
                 n.chains = 5, n.thin = 10, n.burnin = 20000,
                 iter.increment = 10000, max.iter = 500000, 
-                Rhat.limit = 1.05,
+                Rhat.limit = 1.1,
                 save.all.iter = FALSE, parallel = TRUE ) 
 
 #view

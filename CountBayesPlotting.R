@@ -29,13 +29,57 @@ load( "CountBayesResults.RData" )
 #which model should we use moving forward? 
 #answer: 
 
-#get summary from three models:
-m1; m2; m3
+mr <- m3
+#############################################################
+### model evaluation ##########################################
+
+#combine fit statistics into dataframe for plotting
+fitdf <- data.frame( fit = mr$sims.list$fit, 
+                     fit.new = mr$sims.list$fit.new )
+
+#calculate chat:
+chat <- round(mean( mr$mean$fit ) / mean( mr$mean$fit.new ),2)
+
+#plot
+ggplot( fitdf, aes( x = fit, y= fit.new ) ) +
+  geom_point( size = 2 ) +
+  theme_classic( base_size = 17 ) +
+  xlab( "Discrepancy actual data" ) +
+  ylab( "Discrepancy predicted data" ) +
+  geom_abline(intercept = 0, slope = 1) 
+
+chat
+
+
+######### end model evaluation ######################################
+# What about our inference? Does it change depending on model choice?
+mr <- m3
+############## whisker plots #############
+par( mfrow = c( 1,1 ), ask = F , mar = c(3,4,2,2) )
+#for detection
+#fixed effects for detection
+whiskerplot( mr, parameters = c( 'int.det', 'alpha' ) , zeroline = TRUE )
+#for abundance
+#fixed effects for abundance
+whiskerplot( mr, parameters = c( 'int.lam', 'beta' ) , zeroline = TRUE )
+#derived parameters
+whiskerplot( mr, parameters = c( "p" ) )
+whiskerplot( mr, parameters = c( "N" ) )
+
+#random intercepts for observer effect
+whiskerplot( mr, parameters = c( "eps.det" ) )
+par( mfrow = c( 1,1 ), ask = F , mar = c(3,4,2,2) )
+#random intercept for site
+whiskerplot( mr, parameters = c( "eps.i" ) )
+#was the use of random intercepts to capture observer effects better than 
+# the use of fixed effects? 
+# Answer providing reasons for your response:
+# 
+
 
 # For homework you don't have to compare models since you only run one. 
-
-#define model results to plot
-mr <- m3
+# select model here:
+mr <- m2
 
 ############## trace plots ############
 #plot( mr ) #plots traces and posterior densities for all parameters
@@ -52,50 +96,10 @@ traceplot( mr, parameters = c( 'int.lam') )
 traceplot( mr, parameters = c( 'beta') )
 traceplot( mr, parameters = c( 'eps.i') )
 
-############## whisker plots #############
-par( mfrow = c( 1,1 ), ask = F , mar = c(3,4,2,2) )
-#for detection
-#fixed effects for detection
-whiskerplot( mr, parameters = c( 'int.det', 'alpha' ) , zeroline = TRUE )
-#random intercept for observer effect
-whiskerplot( mr, parameters = c( "eps.det" ) )
-#for abundance
-par( mfrow = c( 1,1 ), ask = F , mar = c(3,4,2,2) )
-#fixed effects for abundance
-whiskerplot( mr, parameters = c( 'int.lam', 'beta' ) , zeroline = TRUE )
-#random intercept for site
-whiskerplot( mr, parameters = c( "eps.i" ) )
-
-#derived parameters
-whiskerplot( mr, parameters = c( "p" ) )
-whiskerplot( mr, parameters = c( "N" ) )
-
-
-#############################################################
-### model evaluation ##########################################
-
-#combine fit statistics into dataframe for plotting
-fitdf <- data.frame( fit = mr$sims.list$fit, 
-                fit.new = mr$sims.list$fit.new )
-head( fitdf)
-#plot
-ggplot( fitdf, aes( x = fit, y= fit.new ) ) +
-  geom_point( size = 2 ) +
-  theme_classic( base_size = 17 ) +
-  xlab( "Discrepancy actual data" ) +
-  ylab( "Discrepancy predicted data" ) +
-  geom_abline(intercept = 0, slope = 1)
-
-#calculate chat:
-mean( mr$mean$fit ) / mean( mr$mean$fit.new )
-
-
-######### end model evaluation ######################################
 ##################################################################
 ######### violin plots ###########################################
-# We may want to plot our model coefficient distributions #
-# one approach is to use violin plots
-# here we demonstrate for the abundance submodel
+#To plot our model coefficient distributions we use violin plots
+# Here we demonstrate for the abundance submodel
 #start with extracting relevant fixed effects for abundance submodel
 beta.mat <- mr$sims.list$beta
 #label columns based on order you included predictors in the model
@@ -118,10 +122,35 @@ ggplot( beta.df, aes( y = Value, x = Predictor, fill = Predictor ) ) +
   #add zero line
   geom_hline( yintercept = 0, size = 1.2, color = 'black' )
 
-#repeat process for detection submodel here:
+# But how do we assess importance?
+
+########################    PROBABILITY OF DIRECTION    ########################
+### Probability of direction is the proportiton of the posterior distribution
+### that is of the median's sign. I.E. what percent of the posterior is positve
+### or negative. It is directly interpretable as the probability that the effect
+### is directional. Ref: https://joss.theoj.org/papers/10.21105/joss.01541
+# Function to calculate pd
+prob_direction <- function( samples ) {
+  if( median( samples ) > 0 ) {
+    return( mean( samples > 0 ))
+  } else {
+    return( mean( samples < 0 ))
+  }
+}
+
+##Abundance Coefficients
+pd_beta <- apply( mr$sims.list$beta, 2, prob_direction )
+
+pd_beta
+
+#repeat violin plot and pd calculation for detection submodel here:
 #
 # 
 #
+# What are the probability of direction for predictors in detection submodel:
+# Answer:
+#
+
 ####################################################################
 ######### partial prediction plots #############################
 # Estimate partial prediction plots (marginal effect plots) for predictors 
@@ -169,7 +198,14 @@ ggplot( abunddf, aes( x = sagebrush, y = Mean) ) +
 # unmarked analysis?
 # Answer: 
 # 
-##### detection marginal effects ######
+##
+### Repeat for cheagrass and comment on results:
+# Answer: 
+#
+#
+
+############################################################################
+### detection marginal effects ######
 # our only fixed predictor in detection submodel was time
 # what are the min max times:
 closeddf %>% select( time.j1, time.j2, time.j3 ) %>% 
