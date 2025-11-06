@@ -39,7 +39,7 @@ fitdf <- data.frame( fit = mr$sims.list$fit,
 
 #calculate chat:
 chat <- round(mean( mr$mean$fit ) / mean( mr$mean$fit.new ),2)
-
+chat
 #plot
 ggplot( fitdf, aes( x = fit, y= fit.new ) ) +
   geom_point( size = 2 ) +
@@ -47,13 +47,15 @@ ggplot( fitdf, aes( x = fit, y= fit.new ) ) +
   xlab( "Discrepancy actual data" ) +
   ylab( "Discrepancy predicted data" ) +
   geom_abline(intercept = 0, slope = 1) 
+#bayesian p value
+mean( mr$sims.list$fit -  mr$sims.list$fit.new )
 
-chat
+
 
 
 ######### end model evaluation ######################################
 # What about our inference? Does it change depending on model choice?
-mr <- m3
+mr <- m2
 ############## whisker plots #############
 par( mfrow = c( 1,1 ), ask = F , mar = c(3,4,2,2) )
 #for detection
