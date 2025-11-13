@@ -285,6 +285,19 @@ confint( fm, type = 'det' )
 # Answer:
 #
 
+# For homework adjust the model by adding the quadratic term
+# to detection model Keep SE = FALSE  for comparison.
+# How did this change influence results?
+# Answer:
+#
+# Then adjust by putting the predictors on recruitment
+# instead of survival Keep SE = FALSE for comparison. 
+# 
+# How did this change influence results?
+# Answer:
+#
+
+
 #############end full model ###########
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
