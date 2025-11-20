@@ -253,6 +253,7 @@ inits <- coef( fm.dyn )
 fm.dynSE <- pcountOpen( lambdaformula = ~1, 
         gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT,
         omegaformula = ~1,  pformula = ~1 + time, 
+        dynamics = 'constant', 
         K = 80, se = TRUE, data = umf,
         control = list( trace = TRUE, REPORT = 1), starts = inits )
 
@@ -285,18 +286,30 @@ confint( fm, type = 'det' )
 # Answer:
 #
 
-# For homework adjust the model by adding the quadratic term
-# to detection model Keep SE = FALSE  for comparison.
-# How did this change influence results?
-# Answer:
-#
-# Then adjust by putting the predictors on recruitment
+# For homework adjust the model by putting the predictors on recruitment
 # instead of survival Keep SE = FALSE for comparison. 
-# 
+fm.omega <- pcountOpen( #lambda formula for initial abundance:
+  lambdaformula = ~1, 
+  gammaformula = ~1, 
+  omegaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT,
+  pformula = ~1 + time,
+  dynamics = 'constant', 
+  K = 80, 
+  se = FALSE, 
+  immigration = FALSE,
+  data = umf, 
+  control = list( trace = TRUE, REPORT = 1) )
+
+# View model results:
+fm.omega
+
 # How did this change influence results?
 # Answer:
 #
 
+### Note that these models are not running on some students computers so you 
+# can request the workspace from Jen Cruz to make those comparisons if that #
+# is the case ####
 
 #############end full model ###########
 ##########################################################################
@@ -406,9 +419,7 @@ maxTp <- cbind( pred.maxT[,c("Predicted", "lower", "upper") ], maxT ) %>%
   geom_line( size = 2 ) 
 #view
 maxTp
-# Add plots for detection
-# Answer:
-#
+
 ############################################################################
 ################## Save your data and workspace ###################
 

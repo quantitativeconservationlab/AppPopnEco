@@ -66,9 +66,9 @@ o2y <- matrix( data = 1, nrow = J, ncol = CH )
 # dataframes we need to keep
 keep <- which( rowSums(y_ik ) > 0 )
 #define unmarked dataframe for M[t] and M[o] for single season
-umf.Mt <- unmarkedFrameGMM( y = y_ik[keep,],
+umf.Mt <- unmarkedFrameGMM( y = y_ik[ keep, ],
               #define abundance covariates
-              siteCovs = as.data.frame(ik_sc[keep,]),
+              siteCovs = as.data.frame( ik_sc[keep,] ),
               #define observation covariates:
               obsCovs = list( wind = ij_wide[keep,widx],
                               temp = ij_wide[keep,tidx],

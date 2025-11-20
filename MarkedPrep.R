@@ -13,7 +13,7 @@
 # each day, 2-mean tempC_st up to the hour the traps were closed, 3-mean #
 # wind up to the hour the traps were closed each day                   #
 #
-# Predictors for abundance: only 20 sitesXyear so be mindful of how            #
+# Predictors for abundance: only 20 sitesXyear so be mindful of how      #
 # many we can reasonably include. The data this time comes from RAP:
 # https://rangelands.app/products/ #
 # and includes measures of cover for: shrub, perennial, annual and the #
@@ -187,7 +187,8 @@ ij_wide <- ij_sc %>% select( -X ) %>%
      values_from = c( jday, effort_mins, tempC_st, wind_kmph_st),
      values_fill = 0 ) %>% 
   dplyr::arrange( SiteID, year )
-
+#view
+head(ij_wide)
 # extract column ids for each detection predictor
 widx <- grep( "wind", colnames( ij_wide ), value = FALSE)
 tidx <- grep( "temp", colnames( ij_wide ), value = FALSE)
