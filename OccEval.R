@@ -4,8 +4,8 @@
 ##            the Applied Population Ecology Class                  ###
 ##                                                                   ##  
 ## Here we evaluate model fit and plot model output.                 ##
-# After we conduct an analysis we get results for the single model.   #
-# If we ran model selection, we get a top model. But is it any good?  #
+# After we conduct an analysis we got results for our full model.     #
+# But was it any good?                                                #
 # A model may over or under-fit the data and thus be a poor           #
 # representation of the system we are trying to understand.           #
 #  Too often ecologists stop when they finish running                 #
@@ -48,7 +48,7 @@ load( "OccAnalysisWorkspace.RData" )
 # Pearson chi-square to assess fit as suggested by Mackenzie and Bailey (2004) #
 # J. Agr., Bio. & Env. Stats. 9: 300-318
 # using AICmodavg package
-gof.boot <- AICcmodavg::mb.gof.test( fm.closed, nsim = 1000 )
+gof.boot <- AICcmodavg::mb.gof.test( fm.closed, nsim = 100 )
 #view
 gof.boot
 
@@ -77,7 +77,7 @@ gof.boot
 # (1 - R^2) represents the proportion of unexplained variation in the model
 # We create a reduced model list with only our two models of interest:
 rms <- fitList( 'psi(sagebrush + cheatgrass)p(obsv+sagebrush)' = fm.closed,
-                'psi(.)p(.)' = fm.16 )
+                'psi(.)p(.)' = fm.1 )
 # Then use model selection function from unmarked but this time we define #
 # which one our null model is:
 unmarked::modSel(rms, nullmod = "psi(.)p(.)" )

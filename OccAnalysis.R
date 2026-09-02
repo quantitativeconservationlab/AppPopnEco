@@ -157,6 +157,8 @@ sort( car::vif(modcheck), decreasing = T )
 # you decide to run alternative models to see which may better explain occupancy
 
 # We start by manually running alternative models:
+#include a null model
+( fm.1 <- occu( ~ 1 ~ 1, data = umf ) )
 ( fm.2 <- occu( ~ 1 + obsv + sagebrush  ~ 1 + sagebrush, data = umf ) )
 ( fm.3 <- occu( ~ 1 + obsv + sagebrush ~ 1 + cheatgrass, data = umf ) )
 
@@ -165,7 +167,8 @@ sort( car::vif(modcheck), decreasing = T )
 #
 
 # Use unmarked function we create a list of model options:
-fms <- fitList( 'psi(sagebrush)p(obsv+sagebrush)' = fm.2,
+fms <- fitList( 'psi(.)p(.)' = fm.1,
+  'psi(sagebrush)p(obsv+sagebrush)' = fm.2,
                 'psi(cheatgrass)p(obsv+sagebrush)' = fm.3 )
 #Note this uses the traditional (.) format to signify an intercept only model.
 # We use unmarked function modSel() to compare models using AIC:
