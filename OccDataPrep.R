@@ -3,16 +3,15 @@
 ##     This script was created by Dr. Jen Cruz as part of            ##
 ##            the Applied Population Ecology Class                  ###
 ##                                                                  ###
-##  Our study species is the Piute ground squirrel, Spermophilus     ## 
-## mollis. Ground squirrels are widely distributed in sagebrush      ##
-## habitats of the Great Basin and Columbia Plateau. We focus        ##
-##  on their populations inside the birds of prey NCA.               ##
+##  Our study species is the Snake River Plains ground squirrel,   ##
+## Urocitellus idahoensis.                                           ##
+## We study their populations inside the birds of prey NCA.           ##
 ## In this script we prepare the data that we will use              ###
-## to estimate site occupancy of Piute ground squirrels.             ## 
+## to estimate site occupancy of ground squirrels.                  ## 
 ##  Site locations were randomly selected within the study area     ###
 ## ensuring that they were at least 800 m apart from each other     ##
 ## Sampling occurred during 2007-2018, with 3 repeat surveys each year. #
-## Field surveys consisted of active searches for individuals, active burrows  #
+## Field surveys consisted of active searches for individuals        #
 ## or fresh scats within a 200m radius of the site center point.     ##
 ##  Four technicians worked on the project. The sites visited each   ##
 ### year were randomly assigned to an observer.                      ##
@@ -22,7 +21,7 @@
 ##                                                                   ##
 ## For our occupancy data we create two data summaries:            ##
 ## 1) for one year to demonstrate use of closed population models.    #
-## 2) for all years to asssess temporal changes using aROBUST DESIGN. #              ##
+## 2) for all years to assess temporal changes using a ROBUST DESIGN. #              ##
 ##                                                                   ## 
 ## Predictors:                                                       ##
 # We use landcover data from the National Geospatial Data Asset (NGDA).#
@@ -30,7 +29,7 @@
 # grasses (which we assumed are mainly cheatgrass) from 2007-2018    ##
 # Data are available as a raster of 30 x 30 m cell resolution.       ##
 # We summarized annual % cover surrounding our sites with a 200 m buffer #
-# Habitat data are at the site X year level resolution.               #
+# Vegetation data are at the site X year level resolution.           #
 # Climate data were downloaded from the Twins Falls Station           #
 # including daily measures of min, mean and max Temperatures          # 
 # and total precipitation. We extracted minimum Temperatures for      #
@@ -49,6 +48,7 @@ install.packages( "tidyverse" ) #actually a collection of packages
 
 # load packages:
 library( tidyverse ) 
+options( dplyr.width = Inf, dplyr.print_min = 100 )
 ## end of package load ###############
 ###################################################################
 #### Load or create data -----------------------------------------
@@ -93,10 +93,10 @@ T <- length( yrrange )
 J <- 3
 #view
 I; yrrange; T; J
-# For our 1st set of data we create a closed population dataframe #
-# that only includes the last year data, and columns that are #
-# relevant. Note we don't include time of day because it is only #
-# relevant to point counts.
+
+#Single season occupancy data
+# Start by choosing a single year of occupancy data
+# Note we don't include time of day because it is only relevant to point counts.
     # Select obs_df:
 closeddf <- obs_df %>% 
     #filter only rows for last year:
@@ -107,23 +107,46 @@ closeddf <- obs_df %>%
 #view resulting dataframe
 head( closeddf ); dim( closeddf )
 
-# How many detections each survey across our 100 sites?
+### For homework modify above to choose a different year #
+## so that you can compare how inference changes from year to year #
+# Which year did you choose?
+# Answer:
+# 
+
+# How many detections per survey day across the 100 sites?
 colSums( closeddf[, c("pres.j1", "pres.j2","pres.j3")])
 
-# We also check for missing values in the response #
+# What does this raw data tell you about occupancy of our study species for
+# your chosen year?
+# Answer: 
+# 
+
+# Check for missing values in the response #
 colSums( is.na( closeddf[, c("pres.j1", "pres.j2","pres.j3")]) )
 #none are present
 
-#### Checking our predictors ------------
+#### Predictor data ------------
 # What about our predictors?
-# view
+# view relevant dataframe
 head( preddf ); dim( preddf )
-# Before thinking of whether we can include predictors in our#
-# models we should check their distribution and correlation #
+# Predictor choice should be primarily driven by your ecological question 
+# of interest. However, you may not have the power to include all predictors 
+# in your initial list. 
+# Before including predictors in a model you should check their distribution 
+# and correlation and/or collinearity among them 
 # Why?
-# We start by checking for outliers, skewed distribution etc #
-# create a vector with predictor names
+# Answer: 
+#
+
+# One way to easily loop over just some of the columns in your dataframe is 
+# to create a vector with predictor names
+
+# Why don't we just index column order e.g. preddf[,c(2,3)]
+# Answer:
+# 
 prednames <- c("cheatgrass", "sagebrush", "Feb.minT", "AprMay.maxT" )
+
+# Note that your predictors are in wide format. You can 
 # loop over each to create histograms for each predictor:
 for( p in 1:length(prednames) ){
   # create an object with the ggplot so that you can display it 
@@ -135,18 +158,20 @@ for( p in 1:length(prednames) ){
   # display your plot object
   print( a )
 }
-# What do you note? Any apparent issues with these data?
+
+# What do you note? Any apparent issues with these predictors?
 # Answer:
 #
+
 # Let's plot how predictors vary annually:
 for( p in 1:length(prednames) ){
-  # We can also incorporate site variability for habitat:
   bp<- ggplot( preddf ) +
     theme_bw( base_size = 15 ) + #choose a preset theme
     theme( legend.position = "none" ) + #remove legend display
     labs( y = prednames[p] ) + #label x axis using our predictor names
     # plot each site individually
     geom_line( aes( x = year, y = get(prednames[p]),
+    # We can also incorporate site variability by color coding each site
     color = as.factor(o.sites) ), size = 1.5 )
   
   # Here we rely on a smoothing spline to get mean annual trends #
@@ -159,46 +184,57 @@ for( p in 1:length(prednames) ){
   print( bp )
   print( cp )
 }
-# Any notable sites? 
+# What do you note for each predictor?
 # Answer:
 #
-# Now that we are happy with no outliers, we can check for #
-# correlation among predictors. Why is this important?
+
+# Now check for correlation among predictors:
 cor( preddf[ , prednames] )
+
+# Why is this important?
 # Are there any predictors we need to worry about?
 # What correlations would be worrisome?
+# Answers: 
+#
+
 ### end predictor check ----------------
 
-# Now that we are satisfied with our predictor data we can #
-# append it to our new closeddf:
+# Now that we are satisfied with the predictor data we can #
+# append it to our single season dataframe:
 closeddf <- #select the columns we want to keep in preddf 
-  preddf %>% dplyr::select( o.sites, year, all_of(prednames) ) %>%
+  preddf %>% 
+  #note the easy use of the prednames vector again here. 
+  #otherwise we would have to type names multiple times through the script
+  # which increases changes for errors when you reuse them
+  dplyr::select( o.sites, year, all_of(prednames) ) %>%
   right_join( closeddf, by = c("o.sites", "year") )
-# why did we use right_join instead of left_join?
-# check output #note that I always check dimensions when joining
+
+# check output!!! #note that I always check dimensions when joining
 # dataframes. Sometimes we add or substract rows unintentionally 
 # so it is good to check that your code had the desired result
 head( closeddf); dim( closeddf )
 
 ########################################################################
-# We repeat the process for our robust design. we want to join #
-# the two dataframes keeping relevant columns 
+# We repeat the process for our robust design (multi-season data). 
+#Join multi-season dataframes, keeping relevant columns only
 head( obs_df )
+#create new dataframe starting with observation data
 opendf <-  obs_df %>%
   #select desired columns to keep:
   dplyr::select( o.sites, year, pres.j1, pres.j2, pres.j3,
                  observer.j1, observer.j2, observer.j3 ) 
 #check
 head( opendf ); dim( opendf )
-# We append predictors:
+# Append predictor dataframe:
 opendf <- preddf %>% 
   dplyr::select( o.sites, year, all_of(prednames) ) %>%
   left_join( opendf, by = c("o.sites", "year") )
 #check
 head( opendf ); dim( opendf )
-# We also check for missing values in the response #
+
+# Check for missing values in the predictors #
 # as those are often not allowed in frequentist analyses
-colSums( is.na( opendf[, c("pres.j1", "pres.j2","pres.j3")]) )
+colSums( is.na( opendf[, prednames]) )
 #none are present
 
 ################################################################
@@ -211,25 +247,33 @@ write.csv( closeddf, paste( getwd(),"/Data/closedf.csv", sep = "" ),
 write.csv( opendf, paste( getwd(),"/Data/opendf.csv", sep = "" ),  
            row.names = FALSE )
 
-# if you want to save any of the plots we produced #
-# for your presentation or ms, you do it here too:
+# For homework save the clean data to your data folder, as you will be
+# using it for analysis. Also save one of the plots that we created 
+# and add it to your repository 
+
+# Examples of how to save figures:
 # Save the most recently viewed plot with ggsave() to define file type, resolution, 
 # and plot dimensions:
-ggsave("Data/AprMayTXYear.png", dpi=500, 
-       height = 10, width = 15, units= "cm" )
-# or if you saved it as an object:
-#start by calling the file where you will save it
-tiff( 'Data/FebTXYear.tiff',
-       height = 10, width = 15, units = 'cm', 
-      compression = "lzw", res = 400 )
-#call the plot
-bp
-#turn off
-dev.off()
+# ggsave("Data/AprMayTXYear.png", dpi=500, 
+#        height = 10, width = 15, units= "cm" )
+# 
+# # or if you saved it as an object:
+# #start by calling the file where you will save it
+# tiff( 'Data/FebTXYear.tiff',
+#        height = 10, width = 15, units = 'cm', 
+#       compression = "lzw", res = 400 )
+# #call the plot
+# bp
+# #turn off
+# dev.off()
 
 # if you want to save your workspace, because you are still #
 # working through it use the following command:
 #save.image( "DataPrepWorkspace.RData" )
+
+# Why may you want to save a workspace?
+# Answer:
+# 
 ########## End of saving section ##################################
 ################## Save your data and workspace ###################
 
