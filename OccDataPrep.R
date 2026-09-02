@@ -252,8 +252,8 @@ write.csv( opendf, paste( getwd(),"/Data/opendf.csv", sep = "" ),
 # and add it to your repository 
 
 # Examples of how to save figures:
-# Save the most recently viewed plot with ggsave() to define file type, resolution, 
-# and plot dimensions:
+# Save the most recently viewed plot with ggsave() to define file type, 
+#resolution, and plot dimensions:
 # ggsave("Data/AprMayTXYear.png", dpi=500, 
 #        height = 10, width = 15, units= "cm" )
 # 
