@@ -1,7 +1,7 @@
 #######################################################################
 #######################################################################
-##     This script was created by Dr. Jen Cruz as part of            ##
-##            the Applied Population Ecology Class                  ###
+##     This script was created by Dr. Jen Cruz and David Bontrager  ##
+##          for the Applied Population Ecology Class              ###
 ##                                                                  ###
 ### Our study species are Great Horned Owl and Barn Owl in coastal  ###
 ### Texas. We used 3 call back surveys at x points spaced 1.6 km apart #
@@ -160,7 +160,18 @@ hist( c )
 #we create a siteXsurvey matrix for each one and standardise them
 #wind
 wind_sc <- scale( detdf[ ,c("wind1", "wind2", "wind3") ])
-#replace missing values with mean 0
+#check for missing values
+sum(is.na(wind_sc))
+# how many are there?
+# Answer:
+#
+
+#How can we deal with  missing values?
+# outline possible alternatives:
+# Answer:
+#
+
+#Because there are so few, here we replace missing values with mean 0
 wind_sc[is.na(wind_sc)] <- 0
 
 #set general parameters
@@ -174,8 +185,12 @@ J <- 3
 ###########################################################################
 ####################### define MCMC settings ##############################
 
-nt <- 10; nb <- 20000; nc <- 5 #thinning, burnin, chains
+nt <- 10; nb <- 20000; nc <- 3 #thinning, burnin, chains
 
+#### explain why we thin, burnin, and use multiple chains?
+### answers:
+# 
+#
 ##### end of MCMC parameters definition #############
 ############################################################################
 #################    run alternative models ################################
@@ -217,6 +232,10 @@ cat( "
       
         #this precision is not fully uninformative but actually 
         #regularizes the estimates around 0 to help computation
+        
+        #what is the variance when precision is 0.2? 
+        # answer: 
+        #
       }
       
       #priors for fixed coefficient in detection submodel:
@@ -250,17 +269,28 @@ cat( "
         # from our ecological model above
       
         y_obs[ i,j ] ~ dbern( z[ i ] * p[ i, j ] ) 
+        
+        ## technically this is where the code could end to run your model
+        # the lines below were added specifically to evaluate model fit
+        ## Note that y_obs contains our observed data. 
 
-        #Estimate what the model would have produced as observations
-        # we do this for model evaluation later
+        #Here the yhat is therefore our predicted observations from the model
+        # note that the right side is exactly the same as the y_obs line:
+        
         yhat[ i,j ] ~ dbern( z[ i ] * p[ i, j ] )
         
-        #Estimate the likelihood of observed and predicted
-        # values for model validation later
+        # Model evaluation is difficult and that is also the case in a 
+        # Bayesian framework. Here we estimate the likelihood of observed
+        # vs likelihood of predicted, which we use in OccBayesEval.R
+        # to calculate model deviance and a Bayesian p value
+        # The likelihood is model dependent. Here I use code from Applied
+        # Hierarchical Modeling book that you read last week 
+        
+        #Estimate the likelihood of observed detection values:
         lik_yobs[ i,j ] <- ( ( psi[ i ] * p[ i,j ] )^y_obs[ i,j ] ) *
               ( ( 1 - psi[ i ] * p[ i,j ] )^( 1 - y_obs[ i,j ] ) )
         
-        #likelihood of estimated detections:
+        #Estimate likelihood of predicted detections:
         lik_yhat[ i,j ] <- ( ( psi[ i ]* p[ i,j ] )^yhat[ i,j ] ) *
             ( ( 1 - psi[ i ] * p[ i,j ] )^( 1 - yhat[ i,j ] ) )
 
@@ -272,8 +302,12 @@ cat( "
 
 sink()
 ################ end of model specification  #####################################
+#Here we create an object that contains the name of the text file we just
+# created.  
 modelname <- "m1.txt"
-#parameters monitored #only keep those relevant for model comparisons
+
+#We also need to tell JAGs which parameters to monitor and keep
+#only select those that you need
 params <- c( 'int.psi' #intercept for occupancy model
              , 'int.p' #intercept for detection
              , 'beta.psi' #fixed coefficients for occupancy
@@ -287,37 +321,65 @@ params <- c( 'int.psi' #intercept for occupancy model
              
 )
 
-#create initial values for the model coefficients
+#JAGs requires initial values that it will use to initiate the MCMC
+
+#For z (true occupancy state) we just make a vector same lenght as data 
+# (in this case number of sites = I), and give it all 1s. Always do this
+# even when occupancy is low. It is easier for the model to move away from
+# 1 than to move away from 0. 
 zst <- rep(1, I )
-#number of occupancy predictors
+
+#how many occupancy predictors
 B <- dim(X)[2]
+
 #number of detection predictors
 A <- 1
-#create initial values to start the algorithm
+
+#Besides initial values for z, we also need initial values for the 
+# coefficients related to predictors in both submodels:
 inits <- function(){ list( beta.psi = rnorm( B ),
                            alpha.p = rnorm( A ) 
                           ,z = zst
 ) }
-#combine data into object:
-str( great.data <- list( y_obs = y_obs, #observed occupancy for each species
+# Note that the rnorm() function draws random values from a normal distribution
+# for each predictor and it repeats this for each chain you run. 
+
+#combine all elements into a list to send to JAGs:
+str( great.data <- list( y_obs = y_obs, #observed detection
+            #number of surveys, sites, detection predictors and occupancy predictors
                        J = J, I = I, A = A, B = B,
+            # a vector that labels each row as belonging to year 1 or year 2
+            # so that we can estimate year-specific means
                        yearid = greatdf$yearid  
-                       #site level predictors
+                #site level predictors, scaled:
                        ,X = as.matrix( X )
+                #detection predictors, scaled:
                        ,wind_sc = wind_sc
 ) )                
 
-#call JAGS and summarize posteriors:
+#call JAGS to run model and save results
 m_great <-  autojags( great.data, inits = inits, params, modelname, #
                  n.chains = nc, n.thin = nt, n.burnin = nb,
-                 iter.increment = 20000, max.iter = 500000, 
+                 #how many iterations to run before we check convergence
+                 iter.increment = 20000, 
+                 #how many iterations to run max! 
+                 max.iter = 100000, 
+                 #what threshold to use to check for convergence
+                 #it should be a value very close to 1
                  Rhat.limit = 1.05,
-                 save.all.iter = FALSE, parallel = TRUE ) 
+                 # do we save all iterations or only thinned:
+                 save.all.iter = FALSE, 
+                 # do we want to parallel process? in this case
+                 # it will send a different chain to each core:
+                 parallel = TRUE ) 
 
 ###### end m1 ########
+
 # For homework adapt the code here for barn owls. 
 # this includes selecting the barn owl detections, choosing different 
 # occupancy predictors and modifying the JAGs code accordingly
+# Answer:
+#
 
 ##################################################################
 ### save workspace ###

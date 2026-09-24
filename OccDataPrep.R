@@ -189,7 +189,7 @@ for( p in 1:length(prednames) ){
 #
 
 # Now check for correlation among predictors:
-cor( preddf[ , prednames] )
+round( cor( preddf[ , prednames] ),2)
 
 # Why is this important?
 # Are there any predictors we need to worry about?

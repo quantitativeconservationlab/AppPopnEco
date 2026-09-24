@@ -56,9 +56,11 @@ gof.boot
 # frequency of ground squirrel site-level detection histories?
 # Answer:
 # 
+
 # What is the c-hat value?
 # Answer:
 # 
+
 # Note that values of c-hat > 1 indicate overdispersion (variance > mean), but #
 # that values much higher than 1 (i.e., > 4) probably indicate lack-of-fit. #
 # In cases of moderate overdispersion, one usually multiplies the #
@@ -70,6 +72,7 @@ gof.boot
 # Is our model over- or under-dispersed?
 # Answer:
 #
+
 # We can also evaluate how well our full model did against the null model # 
 # by estimating pseudo-R^2, based on Nagelkerke, N.J.D. (1991) A Note #
 # on a General Definition of the Coefficient of Determination. Biometrika 78,#
@@ -84,13 +87,6 @@ unmarked::modSel(rms, nullmod = "psi(.)p(.)" )
 # What does this tell us about the fit of our model?
 # Answer:
 #
-# For homework compare the full model against the 'top' model selected by 
-#model selection last week here:
-#
-
-# Did the top model explain any more variation than the full model?
-# Answer:
-# 
 
 # Note that there are multiple approaches for estimating pseudo-Rsquares. See:
 # https://stats.idre.ucla.edu/other/mult-pkg/faq/general/faq-what-are-pseudo-r-squareds/
@@ -112,6 +108,7 @@ unmarked::modSel(rms, nullmod = "psi(.)p(.)" )
 # What is the mean of our predictors?
 # Answer:
 #
+
 # For our occupancy submodel we have two continuous predictors so we can #
 # create a partial plot of each while keeping the other predictor at the #
 # mean value. 

@@ -28,7 +28,7 @@ mr <- m_great
 
 #Total number of iterations ran:
 N <- mr$mcmc.info$n.samples
-
+N 
 dim(mr$sims.list$lik_yobs)
 dim(mr$sims.list$lik_yhat)
 ########################################################################
@@ -40,8 +40,8 @@ evaldf <- detdf %>%
 head( evaldf )
 #add likelihood values
 
-# This function calculates Model deviances (differences in likelihood between 
-# observed and predicted detections) 
+# This function calculates Model deviances:
+# differences in likelihood between observed and predicted detections
 CalcDevs <- function( lik_yobs, lik_yhat )
   {
   #lik_yobs: likelihood of observed data
@@ -100,5 +100,11 @@ plot( ModDevs$Dev_obs, ModDevs$Dev_hat,
       ylab = "Deviance of predicted data", tcl = 0.2, 
       bty = "l"  ) 
 abline( 0, 1, col = 'black', lwd = 3 )
+
+# What does the Bayesian p value and the deviance plot tell you about 
+# model fit:
+# Answer:
+# 
+
 
 #############       END OF SCRIPT         ###########################

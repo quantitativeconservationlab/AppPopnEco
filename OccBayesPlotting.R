@@ -34,6 +34,7 @@ mr
 
 ############## trace plots ############
 #plot( mr ) #plots traces and posterior densities for all parameters
+#define how many plots to show
 par( mfrow = c( 3, 3 ), ask = F, mar = c(3,4,2,2) )
 #intercept in occupancy submodel
 traceplot( mr, parameters = c( 'int.psi') )
@@ -43,6 +44,10 @@ traceplot( mr, parameters = c( 'beta.psi') )
 traceplot( mr, parameters = c( 'int.p') )
 #coefficients in detection submodel
 traceplot( mr, parameters = c( 'alpha.p') )
+
+# What are traceplots showing?
+# Answer:
+# 
 
 ############## whisker plots #############
 par( mfrow = c( 1,1 ), ask = F , mar = c(3,4,2,2) )
@@ -63,7 +68,7 @@ whiskerplot( mr, parameters = c( "p" ) )
 
 #From the quick look at the whiskerplots...our detection #
 #predictors were not that important. We choose to plot #
-# the relationship with day of survey as a way of demonstrating #
+# the relationship with wind speed as a way of demonstrating #
 # the process
 
 # Were your detection predictors important for the Barn Owl model?
@@ -126,7 +131,7 @@ ggplot( data = p.pred, aes( x = Wind, y = Mean ) ) +
 psilabs <- c("shrub", "ah", "aquatic" )
 #Nice labels you want in your plots
 nicepsilabs <- c( 'Shrub Cover (%)',
-                  "Aplomado Habitat Cover (%)", "Woody wetland (%)" )
+      "Aplomado Habitat Cover (%)", "Woody wetland (%)" )
 
 # if you want to use results from the barn owl model then you modify 
 # psilabs and nicepsilabs above and not the function below. 
@@ -230,7 +235,7 @@ ggplot( data = occ.preds, aes( x = Raw, y = Mean,
 
 ######### save relevant output   ###########################
 
-# How would you save one of your figures?
+# For homework save your figures
 # Answer:
 # 
 
