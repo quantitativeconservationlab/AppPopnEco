@@ -24,6 +24,7 @@ getwd()
 
 # load packages:
 library( tidyverse )#includes dplyr, tidyr and ggplot2
+options( dplyr.width = Inf, dplyr.print_min = 100 )
 library( unmarked ) #run occupancy and abundance models
 library( AICcmodavg ) #model evaluation 
 ## end of package load ###############
@@ -58,9 +59,6 @@ head( robdf ); dim( robdf )
 # may increase survival of young, and therefore the amount of individuals, #
 # spreading to new areas.
 #
-# What about our temperature metrics? 
-# Where should they go?
-#
 # Detection:
 # We expect observer effects influence detection. We also test the #
 # effects of sagebrush again. #
@@ -72,10 +70,6 @@ longdf <- robdf %>% pivot_longer( cols = contains("j"),
 
 #check
 head( longdf );dim(longdf )
-#do we have the right number of rows?
-#answer: 
-table( longdf$observer., longdf$pres. )
-
 # Arrange columns in the correct order for unmarked fomatMult() function:
 longdf <- longdf %>% select( year, o.sites, survey, pres =  pres., 
                              cheatgrass, sagebrush, Feb.minT, AprMay.maxT,
@@ -100,9 +94,9 @@ fm.dyn <- colext( #define detection submodel:
                     #define occupancy submodel for year 1:
                      psiformula = ~ 1,
                     #define extinction submodel for years 2:T:
-                   epsilonformula = ~ 1 +  cheatgrass + Feb.minT, 
+                   epsilonformula = ~ 1 +  cheatgrass + Feb.minT , 
                    #define colonization submodel for years 2:T:
-                   gammaformula = ~ 1 + sagebrush + AprMay.maxT, 
+                   gammaformula = ~ 1 + sagebrush + AprMay.maxT , 
                      #data to use:
                    data = umf )
 # Why didn't we put predictors on psi?
@@ -112,13 +106,6 @@ fm.dyn <- colext( #define detection submodel:
 fm.dyn
 
 # Estimate confidence intervals for coefficients in ecological submodels:
-plogis(confint( fm.dyn, type = "psi" ))
-# what does that plogis function do? What does the result tell us?
-# Answer:
-#
-# Why don't we do the same for colonization and extinction?
-# Answer:
-#
 confint( fm.dyn, type = "col" )
 confint( fm.dyn, type = "ext" )
 # How do we interpret these results?
@@ -129,9 +116,11 @@ confint( fm.dyn, type = 'det' )
 # How do we interpret these results?
 # Answer:
 #
-# How are they different to our single-season detection model?
+# How are results different to your single-season detection model?
 # Answer:
 #
+
+
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
 
@@ -155,10 +144,10 @@ gof.boot
 #
 # If we want to look at each season to see if any of them had particularly bad fit:
 gof.boot$chisq.table$tables
-# Is there a season that was particularly bad? Which?
+# Is there a season that was particularly bad? Which and why?
 # Answer: 
 #
-# Remember that higher chi-squared values represent worse fit
+
 
 # We also evaluate how well our full model did against the null model # 
 # by estimating pseudo-R^2, based on Nagelkerke, N.J.D. (2004) A Note #
@@ -199,6 +188,7 @@ data.frame( year = sort( unique( robdf$year) ),
 # What is happening to Piute ground squirrels at the NCA?
 # Answer:
 # 
+
 # We now see the effects that our predictors are having on this trend. #
 # by plotting partial prediction plots for our ecological submodels #
 # Here I focus only on those with 95% CIs not overlapping zero:
@@ -249,7 +239,6 @@ sagep <- cbind( pred.col.sage[,c("Predicted", "lower", "upper") ], sagebrush ) %
 #view
 sagep
 # How do you interpret this relationship?
-# Is there a potential threshold beyond which colonization becomes unlikely?
 # Answer:
 #
 #Now plot cheatgrass and extinction:
@@ -284,24 +273,6 @@ cheatp
 
 # Save workspace:
 save.image( "RobOccResults.RData" )
-
-#save the plot objects you need for your presentation
-#start by calling the file where you will save it
-tiff( 'Data/SageXCol.tiff',
-      height = 10, width = 12, units = 'cm', 
-      compression = "lzw", res = 400 )
-#call the plot
-sagep
-#end connection
-dev.off()
-#Now the cheatgrass x occupancy plot:
-tiff( 'Data/CheatXExt.tiff',
-      height = 10, width = 12, units = 'cm', 
-      compression = "lzw", res = 400 )
-#call the plot
-cheatp
-#end connection
-dev.off()
 
 ########## End of saving section ##################################
 
