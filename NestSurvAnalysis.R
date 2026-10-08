@@ -38,7 +38,13 @@ options( dplyr.width = Inf, dplyr.print_min = 100 )
 library( jagsUI )
 ## end of package load ###############
 ########### standardising functions  #################
-#genetic function to standardise covariates using Gelman's suggestion:
+#genetic function to standardise covariates using Gelman's suggestion
+# to divide by 2SD instead of 1 when you have binary or categorical 
+# predictors, as well as continuous ones, in your model.
+# see Gelman 2008 Statistics in Medicine 27:2865-2873
+# this could be useful for your own wor so feel free to use it
+# here we use it to scale matrices (scale() doesn't do those as easily)
+
 standardise <- function( xmat, stdevs = 2, marg = c( 1, 2, 3 ) ) { 
   mean.xmat = mean( as.vector( xmat ), na.rm = TRUE )
   sd.xmat = sd( as.vector( xmat ), na.rm = TRUE ) 
@@ -72,7 +78,7 @@ M <- max( chickdf$terid )
 yrrange <- sort( unique( chickdf$yrid ) ) 
 #total number of years sampled:
 K <- max( chickdf$yrid )
-# We want survival for the first 6 weeks
+# We want survival for the first 6 weeks, which is 42 days
 J <- 42
 #number of individual chicks
 N <- max( chickdf$id )
@@ -107,6 +113,8 @@ z_obs[ , 1 ] <- 1
 
 #check that it worked:
 z_obs[1:5,]
+#note for 1st individual, last two observations were 0 so 1s only filled 
+# until it was last detected alive, the rest are NAs
 
 #extract site-level (territory) covariates
 head( chickdf )
@@ -214,7 +222,8 @@ cat( "
       
       # we expected mean detection to be high. Adapt your intercept prior
       # to accommodate this prior expectation
-      
+      # Answer:
+      # 
       
       #random territory intercepts
       for ( m in 1:M ){  #loop over species

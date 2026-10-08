@@ -30,7 +30,7 @@ load( "SurvivalResults.RData" )
 mr <- m1
 #Total number of iterations ran:
 S <- mr$mcmc.info$n.samples
-
+S
 #extract summary results
 summary( mr )
 plot( mr )
@@ -43,6 +43,11 @@ traceplot( mr, parameters = c( 'int.p') )
 #random intercepts
 traceplot( mr, parameters = c( 'sigma.eps.p.M') )
 traceplot( mr, parameters = c( 'sigma.eps.p.J') )
+#What do you look out for with these sigma parameters for the 
+# random effects? when do they suggest an issue?
+# Answer:
+#
+#now let's look at the random effects
 traceplot( mr, parameters = c( 'eps.p.M') )
 traceplot( mr, parameters = c( 'eps.p.J') )
 
@@ -60,6 +65,9 @@ whiskerplot( mr, parameters = c( 'int.p' ) , zeroline = TRUE )
 #random intercept for detection
 whiskerplot( mr, parameters = c( "eps.p.M" ) )
 whiskerplot( mr, parameters = c( "eps.p.J" ) )
+#how do you interpret these random intercepts?
+# Answer:
+
 #for survival
 par( mfrow = c( 1,1 ), ask = F , mar = c(3,4,2,2) )
 #fixed effects for abundance

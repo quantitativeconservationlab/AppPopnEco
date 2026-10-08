@@ -15,7 +15,7 @@
 ## Here we examine associations between owls' occupancy and habitat   ##
 ### for detection we look at the effects of wind speed, cloud cover,   ##
 ### and day of the year.                                               ##
-# Habitat was extracted from multiple sources and was available at a 30x30 m#
+# Vegetation was extracted from multiple sources and was available at 30x30 m#
 # resolution and then summarized around each site as mean percent cover #
 # using a 800 m radius surrounding each call back point. We have cover #
 # for developed areas: to describe anthropogenic development, crop:  #
@@ -59,7 +59,7 @@ getwd()
 # set directory where your data are:
 datadir <- paste( getwd(), "/Data/Texas/", sep = "" )
 
-# load habitat predictors for the ecological model
+# load vegetation predictors for the ecological model
 habdf <- read.csv( file = paste( datadir, "habitat.csv",
               sep = ""), header = TRUE )
 
@@ -228,7 +228,7 @@ cat( "
       #priors for fixed coefficients in ecological model:
       for( b in 1:B ){ #loop over number of predictors
       
-        beta.psi[ b ] ~ dnorm( 0, 0.2 ) 
+        beta.psi[ b ] ~ dnorm( 0, 0.2 ) #mean and precision
       
         #this precision is not fully uninformative but actually 
         #regularizes the estimates around 0 to help computation
