@@ -29,7 +29,7 @@ library( tidyverse )
 datadir <- paste( getwd(), "/Data/", sep = "" )
 
 # load observed counts:
-obs_df <- read.csv( file = paste( datadir, "obs_df.csv", sep = ""),
+obs_df <- read.csv( file = paste( datadir, "obsdf.csv", sep = ""),
                     header = TRUE )
 
 #view

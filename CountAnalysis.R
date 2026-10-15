@@ -70,15 +70,23 @@ umf <- unmarkedFramePCount(
 summary( umf )
 #now scale ecological predictors:
 #sc <- apply( siteCovs(umf), MARGIN = 2, FUN = scale )
-scsage <- standardise( as.matrix(siteCovs(umf)[,"sagebrush"]), stdevs = 2, marg = 2 )
-sccheat <- standardise( as.matrix(siteCovs(umf)[,"cheatgrass"]), stdevs = 2, marg = 2 )
+scsage <- standardise( as.matrix(siteCovs(umf)[,"sagebrush"]), 
+                       stdevs = 2, marg = 2 )
+sccheat <- standardise( as.matrix(siteCovs(umf)[,"cheatgrass"]), 
+                        stdevs = 2, marg = 2 )
 # We replace the predictors in our unmarked dataframe with the scaled values:
 siteCovs( umf )[,c("sagebrush","cheatgrass") ] <- cbind(scsage, sccheat)
 #now for time:
-sctime <- standardise( as.matrix( obsCovs(umf)[,c("time") ] ), marg = 2 )
-sctime2 <- standardise( as.matrix( obsCovs(umf)[,c("time2") ] ), marg = 2 )
+sctime <- standardise( as.matrix( obsCovs(umf)[,c("time") ] ), 
+                       stdevs = 2, marg = 2 )
+sctime2 <- standardise( as.matrix( obsCovs(umf)[,c("time2") ] ), 
+                        stdevs = 2, marg = 2 )
 #replace with scaled values:
 obsCovs(umf)[,c("time","time2") ] <-cbind(sctime, sctime2)
+
+# Why are we dividing by 2 SD instead of 1 here?
+# Answer:
+#
 
 #recheck
 summary( umf )
@@ -89,7 +97,7 @@ fm.closed <- pcount( ~ 1 + obsv + time + time2
                    ~ 1 + sagebrush + cheatgrass, 
                    #Define the maximum possible abundance
                    #during the primary occasion
-                    K = 80,
+                    K = 500,
                    mixture = c("P"),
                    data = umf )
 # Note that we start with the observation submodel #
@@ -109,9 +117,14 @@ confint( fm.closed, type = 'det' )
 # which may be important to each of your responses? #
 # Answer:
 #
+#Why are the observer effects different than those for occupancy?
+# Answer:
+#
+
 #What is the mean abundance from our model?
 exp(coef(fm.closed[1]))
-plogis(coef(fm.closed[2] ) )
+
+
 #############end full model ###########
 ##########################################################################
 # Model fit and evaluation -----------------------------------------------
@@ -130,63 +143,70 @@ gof.boot
 # What does the output tell us about our model fit?
 # Answer:
 #
-# We also evaluate how well our full model did against the null model # 
-# by estimating pseudo-R^2, based on Nagelkerke, N.J.D. (2004) A Note #
-# on a General Definition of the Coefficient of Determination. Biometrika 78,#
-# pp. 691-692.#
-# We run the null model
-fm.null <- pcount( ~ 1 ~ 1,
-            K = 80, data = umf )
-#view
-fm.null
-# Now build the list with the two models of interest:
-rms <- fitList( 'full' = fm.closed,
-                'null' = fm.null )
-# Then use model selection function from unmarked, defining which is the null:
-unmarked::modSel(rms, nullmod = "null" )
-# What does this tell us?
-# Answer:
-#
+
 # Now use gof checks outlined in Knape et al. 2018 MEE 9:2102-2114
 # We start by estimating overdispersion metrics 
 chat( fm.closed, type = 'marginal' )
 chat( fm.closed, type = 'site-sum' )
 chat( fm.closed, type = 'observation' )
 
+# What does this suggest about our model fit? 
+# What are alternative model options?
+# Answer:
+#
+
+# We modify to a Zero-inflate Poisson:
+fm.zip <- pcount( ~ 1 + obsv + time + time2
+                     ~ 1 + sagebrush + cheatgrass, 
+                     #Define the maximum possible abundance
+                     #during the primary occasion
+                     K = 500,
+                     mixture = c("ZIP"),
+                     data = umf )
+
+# Why did we choose this option?
+# Answer:
+#
+#let's recheck overdisperssion:
+chat( fm.zip, type = 'marginal' )
+chat( fm.zip, type = 'site-sum' )
+chat( fm.zip, type = 'observation' )
+
+#what do these results tell us?
+# Answer: 
+#
+
+
 # Plot rq residuals against untransformed numeric predictors. This may help
 # detect problems with the functional form assumed in a model
-residcov( fm.closed )
+residcov( fm.zip )
 # What do the plots tell you?
 # Answer:
 #
+
+
 # Plot residuals against fitted values. Site-sum randomized quantile residuals
 # are used for site covariates while marginal residuals are used for
 # observation covariates. 
-residfit( fm.closed, type = 'site-sum' )
+residfit( fm.zip, type = 'site-sum' )
 # Plot the observation model residuals
-residfit( fm.closed, type = 'observation' )
+residfit( fm.zip, type = 'observation' )
 # What did Knape et al. 2018 say these residuals were useful for?
 # Answer:
 #
 
 # Niw plot Qq plots of randomized residuals against standard normal quantiles. #
 # Under a good fit, residuals should be close to the identity line. 
-residqq( fm.closed, type = 'site-sum' )
-residqq( fm.closed, type = 'observation' )
+residqq( fm.zip, type = 'observation' )
 # What do these plots indicate? 
 # Answer:
 # 
+
 # What is some of the advice recommended by Knape et al. 2018 if we want 
 # to use abundance estimates from these N-mixture models?
 # Answer:
 #
-# Now try fitting other functional forms (e.g. ZIP or Negative Binomial)
-# Do you get a better fit?
-# Answer:
-#
-# Are there other ways to fit time that may make more sense?
-# Answer:
-#
+
 
 #########################################################################
 ##### Summarizing model output ##############
@@ -207,7 +227,7 @@ detData <- data.frame( obsv = factor(c("tech.1", "tech.1","tech.1", "tech.1"),
               levels = c("tech.1", "tech.2","tech.3", "tech.4") ), 
               time = time.std, time2 = time2.std )
 #predict partial relationship:
-pred.time <- predict( fm.closed, type = "det", newdata = detData, 
+pred.time <- predict( fm.zip, type = "det", newdata = detData, 
                            appendData = TRUE )
 
 # create plot for detection submodel:
