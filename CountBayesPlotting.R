@@ -29,7 +29,7 @@ load( "CountBayesResults.RData" )
 #############################################################
 ### model evaluation ##########################################
 #start evaluating different models
-mr <- m1
+mr <- m4
 
 #combine fit statistics into dataframe for plotting
 fitdf <- data.frame( fit = mr$sims.list$fit, 
@@ -169,8 +169,10 @@ pd_beta
 # what are the min max times:
 closeddf %>% select( time.j1, time.j2, time.j3 ) %>% 
   summarise_all(list(min, max))
+#intercept
+int <- rep(1,100)
 #use them to define your bounds:
-Time <- round(seq( 0, 360, length.out = n ),0)
+Time <- round(seq( 0, 360, length.out = 100 ),0)
 time.std <- scale( Time )
 time2.std <- scale( Time^2 )
 #extract relevant fixed coefficient for detection submodel results
