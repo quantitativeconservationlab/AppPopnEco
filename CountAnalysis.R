@@ -220,8 +220,8 @@ closeddf %>% select( time.j1, time.j2, time.j3 ) %>%
 #use them to define your bounds:
 Time <- round(seq( 0, 360, length.out = n ),0)
 Time2 <- Time^2
-time.std <- standardise( as.matrix(Time), marg = 2 )
-time2.std <- standardise( as.matrix(Time2), marg=2 )
+time.std <- standardise( as.matrix(Time), stdevs = 2, marg = 2 )
+time2.std <- standardise( as.matrix(Time2), stdevs = 2, marg=2 )
 # now for detection
 detData <- data.frame( obsv = factor(c("tech.1", "tech.1","tech.1", "tech.1"), 
               levels = c("tech.1", "tech.2","tech.3", "tech.4") ), 

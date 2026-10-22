@@ -26,12 +26,10 @@ load( "CountBayesResults.RData" )
 ################################################################################
 #################### viewing model results ####################################
 ##################################################################################
-#which model should we use moving forward? 
-#answer: 
-
-mr <- m3
 #############################################################
 ### model evaluation ##########################################
+#start evaluating different models
+mr <- m1
 
 #combine fit statistics into dataframe for plotting
 fitdf <- data.frame( fit = mr$sims.list$fit, 
@@ -49,9 +47,6 @@ ggplot( fitdf, aes( x = fit, y= fit.new ) ) +
   geom_abline(intercept = 0, slope = 1) 
 #bayesian p value
 mean( mr$sims.list$fit -  mr$sims.list$fit.new )
-
-
-
 
 ######### end model evaluation ######################################
 # What about our inference? Does it change depending on model choice?
@@ -118,11 +113,11 @@ ggplot( beta.df, aes( y = Value, x = Predictor, fill = Predictor ) ) +
   ylab( 'Standardized effect size' ) +
   #plot distribution
   geom_violin( trim = FALSE, #fill = '#A4A4A4', 
-               size = 0.5 ) +
+               linewidth = 0.5 ) +
   #add boxplot highlighting mean and 95 CIs 
   geom_boxplot( width = 0.1 ) +
   #add zero line
-  geom_hline( yintercept = 0, size = 1.2, color = 'black' )
+  geom_hline( yintercept = 0, linewidth = 1.2, color = 'black' )
 
 # But how do we assess importance?
 
@@ -158,53 +153,15 @@ pd_beta
 # Estimate partial prediction plots (marginal effect plots) for predictors 
 # with 95% CIs not overlapping zero:
 # For abundance submodel first:####
-# Start by creating our datasets to predict over
-# how many values do we use:
-n <- 100
-#define a vector of ones for intercept
-int <- rep( 1, n )
-# Use the observed values to define range of predictor:
-sagebrush <- seq( min( closeddf[,"sagebrush"]),max( closeddf[,"sagebrush"]),
-                   length.out = n )
-#standardize predictors:
-sagebrush.std <- scale( sagebrush )
+### Add code to estimate partial plot for the important predictor in abundance
+# submodel:
+#
+#
 
-#extract relevant fixed coefficient from abundance submodel results
-fixedabund <- cbind( mr$sims.list$int.lam, mr$sims.list$beta[,2] )
-
-#estimate predicted abundance 
-predabund <- exp( fixedabund %*% t( cbind( int, sagebrush.std) ) )
-#calculate mean abundance
-mabund <- apply( predabund, MARGIN = 2, FUN = mean )
-#calculate 95% Credible intervals for abundance
-CIabund <- apply( predabund, MARGIN = 2, FUN = quantile, 
-                  probs = c(0.025, 0.975) )
-
-#create dataframe combining all predicted values for plotting
-abunddf <- data.frame( mabund, t(CIabund),
-                       sagebrush.std, sagebrush )
-#view
-head( abunddf); dim( abunddf)
-#rename predicted abundance columns
-colnames(abunddf )[1:3] <- c(  "Mean", "lowCI", "highCI" )
-
-#plot marginalised effects for abundance submodel 
-ggplot( abunddf, aes( x = sagebrush, y = Mean) ) +
-  theme_classic( base_size = 17) +
-  ylab( "Relative abundance" ) +
-  xlab( "Sagebrush (%)" ) +
-  geom_line( size = 1.5) +
-  geom_ribbon( alpha = 0.3, aes( ymin = lowCI, ymax = highCI ) )
-
-#How does this plot compare to the one you obtained from the 
-# unmarked analysis?
+#How does it compare to results from unmarked?
 # Answer: 
 # 
 ##
-### Repeat for cheagrass and comment on results:
-# Answer: 
-#
-#
 
 ############################################################################
 ### detection marginal effects ######

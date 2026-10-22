@@ -68,15 +68,24 @@ obvs <- structure( obvs, dim = dim( closeddf[,oidx] ), class = "matrix" )
 #number of observers 
 S <- max(obvs, na.rm = TRUE)
 
-#For homework you need to run only one of the three model versions below
-# List your choice here including some reasoning for your choice:
+# How are we coding observer IDs differently than when we code them for #
+# unmarked? How does that change our need to divide by 2SD?
+# Answers:
+#
+
+#For homework you need to choose to run either m1,m2 or m3 below
+# for the model you choose, annotate it to further explain steps for your 
+# future self.
+# Here tell me which model you are choosing and why? (I will look below
+# at how you annotated it)
 # Answer:
 #
  
 ##########################################################################
 ####### m1 single season N-mixture abundance model    #
-# ecological predictors: cheatgrass and sagebrush #
-# detection predictors: time and observer as random intercept #
+# ecological predictors: cheatgrass and sagebrush as fixed effects #
+# detection predictors: time and time2 as main and quadratic fixed effects
+# observer ID as random intercept #
 ############################################################################
 ############## Specify model in bugs language:  #####################
 sink( "m1.txt" )
@@ -110,7 +119,7 @@ cat( "
       }
       
       #prior for abundance model intercept 
-      int.lam ~ dgamma( 0.01, 0.01 ) T(-10, 10 )
+      int.lam ~ dgamma( 0.01, 0.01 ) 
       
     
     # ecological model of abundance
@@ -211,11 +220,13 @@ str( win.data <- list( y_obs = as.matrix( closeddf[ ,yidx] ),
 m1 <- autojags( win.data, inits = inits, params, modelname, #
                 n.chains = 5, n.thin = 10, n.burnin = 20000,
                 iter.increment = 10000, max.iter = 500000, 
-                Rhat.limit = 1.1,
+                Rhat.limit = 1.05,
                 save.all.iter = FALSE, parallel = TRUE ) 
 
+#how many iterations to converge?
+m1$mcmc.info$n.samples
+m1$mcmc.info$n.iter
 #view results 
-m1
 plot(m1)
 #chat
 hist( m1$sims.list$fit / m1$sims.list$fit.new )
@@ -264,8 +275,9 @@ cat( "
         beta[ b ] ~ dnorm( 0, 0.2 ) T(-7, 7 )
       }
       
-      #prior for abundance model intercept 
-      int.lam ~ dunif( 0, 10 )
+      #prior for abundance model intercept
+      int.lam ~ dgamma( 0.01, 0.01 ) 
+      # int.lam ~ dunif( 0, 10 ) alternative used in Kery and Schuab
 
       #random intercept for site
       for( i in 1:I ){
@@ -340,11 +352,12 @@ params <- c(  'int.det' #intercept for detection
 m2 <- autojags( win.data, inits = inits, params, modelname, #
                 n.chains = 5, n.thin = 10, n.burnin = 20000,
                 iter.increment = 10000, max.iter = 500000, 
-                Rhat.limit = 1.1,
+                Rhat.limit = 1.05,
                 save.all.iter = FALSE, parallel = TRUE ) 
 
+#how many iterations to converge?
+m2$mcmc.info$n.samples
 #view
-summary( m2 )
 plot(m2)
 #calculate chat
 mean( m2$mean$fit ) / mean( m2$mean$fit.new )
@@ -355,8 +368,10 @@ plot( x = m2$sims.list$fit, y = m2$sims.list$fit.new )
 
 ##########################################################################
 ####### m3 single season N-mixture abundance model -ZIP   #
-# ecological predictors: cheatgrass and sagebrush #
-# detection predictors: time and observer as random intercept #
+# with a zero inflated poisson to account for unoccupied sites #
+# ecological predictors: cheatgrass and sagebrush as fixed effects #
+# detection predictors: time as quadratic fixed effect #
+# and observer as random intercept #
 ############################################################################
 ############## Specify model in bugs language:  #####################
 sink( "m3.txt" )
@@ -392,8 +407,7 @@ cat( "
       # site suitability prior
       omega ~ dbeta( 4, 4 )
       #prior for abundance model intercept 
-      int.lam ~ dgamma( 0.01, 0.01 ) T(0, 10 )
-      
+      int.lam ~ dgamma( 0.01, 0.01 ) 
     
     # ecological model of abundance
     for( i in 1:I ){
@@ -462,11 +476,12 @@ params <- c(  'int.det' #intercept for detection
 m3 <- autojags( win.data, inits = inits, params, modelname, #
                 n.chains = 5, n.thin = 10, n.burnin = 20000,
                 iter.increment = 10000, max.iter = 500000, 
-                Rhat.limit = 1.1,
+                Rhat.limit = 1.05,
                 save.all.iter = FALSE, parallel = TRUE ) 
 
+#how many iterations to converge?
+m3$mcmc.info$n.samples
 #view
-summary( m3 )
 plot(m3)
 #calculate chat
 mean( m3$mean$fit ) / mean( m3$mean$fit.new )
@@ -474,6 +489,133 @@ mean( m3$mean$fit ) / mean( m3$mean$fit.new )
 plot( x = m3$sims.list$fit, y = m3$sims.list$fit.new )
 
 ###### end m3 ########
+##########################################################################
+####### m4 single season N-mixture abundance model    #
+# ecological predictors: cheatgrass and sagebrush as fixed effects #
+# detection predictors: time as quadratic fixed effect   #
+#     observer as random intercept to account for technician differences #
+#     site as random intercept to account for over-dispersion in detection #
+############################################################################
+############## Specify model in bugs language:  #####################
+sink( "m4.txt" )
+cat( "
+     model{
+     
+      #priors
+      #for detection model: 
+      #define intercept as mean probs:
+      int.det <- log( mean.det / ( 1 - mean.det ) )
+      mean.det ~ dbeta( 4, 4 )
+      
+      #random intercept for observer
+      for( s in 1:S ){
+        eps.det[s] ~ dnorm( 0, pres.det ) T(-7, 7)
+      }
+      #associated variance of random intercepts:     
+      pres.det <- 1/ ( sigma.det * sigma.det )
+      #sigma prior specified as a student t half-normal:
+      sigma.det ~ dt( 0, 2.5, 7 ) T( 0, )
+      
+      #priors for detection coefficients:
+      #define as a slightly informative prior
+      for( a in 1:A){
+        alpha[a] ~ dnorm( 0, 0.2 ) T(-7, 7 )
+      }
+      #priors for abundance coefficients:
+      for( b in 1:B ){
+        #define as a slightly informative prior
+        beta[ b ] ~ dnorm( 0, 0.2 ) T(-7, 7 )
+      }
+      
+      #prior for abundance model intercept 
+      int.lam ~ dunif( 0, 10 ) #alternative prior 
+
+      #random intercept for site
+      for( i in 1:I ){
+        eps.i[i] ~ dnorm( 0, pres.i ) T(-7, 7)
+      }
+      #associated variance of random intercepts:     
+      pres.i <- 1/ ( sigma.i * sigma.i )
+      #sigma prior specified as a student t half-normal:
+      sigma.i ~ dt( 0, 2.5, 7 ) T( 0, )
+    
+    # ecological model of abundance
+    for( i in 1:I ){
+      N[ i ] ~ dpois( lambda[ i ] )
+      log( lambda[ i ] ) <- int.lam + 
+                        inprod( beta, XI[ i, ]  )     
+
+      #observation model
+      for( j in 1:J ){
+        logit( p[i,j] ) <- int.det + 
+                  #random intercept for observer effect
+                  eps.det[ obvs[i,j] ] +
+                        #random effect for site
+                        eps.i[ i ] +
+                  #fixed effects
+                  alpha[1] * time[i,j] +
+                  alpha[2] * time2[i,j]
+        #observed counts
+        y_obs[ i, j ] ~ dbin( p[i,j], N[i] )  
+                  
+        #for model evaluation we calculate Chi-squared discrepancy
+        #expected abundance
+        eval[i,j] <- p[i,j] * N[i]
+        #compare vs observed counts
+        E[i,j] <- pow( ( y_obs[i,j] - eval[i,j] ), 2 ) /
+                  ( eval[i,j] + 0.001 )
+        # Generate replicate data and compute fit stats
+        #expected counts
+        y_hat[ i, j ] ~ dbin( p[i,j], N[i] )
+        E.new[i,j] <- pow( ( y_hat[i,j] - eval[i,j] ), 2 ) /
+                  ( eval[i,j] + 0.001 )
+      
+    } #close J
+    } #close I
+        
+    #derived estimate of fit
+    fit <- sum( E[,] )
+    fit.new <- sum( E.new[,] )
+    
+    } #model close
+     
+     ", fill = TRUE )
+
+sink()
+################ end of model specification  #####################################     
+modelname <- "m4.txt"
+#parameters monitored
+params <- c(  'int.det' #intercept for detection
+              , 'int.lam' #intercept for lamda
+              , 'alpha' #detection coefficients
+              , 'eps.det' #random intercepts in detection
+              , 'sigma.det' #error for random intercept
+              , 'beta' #abundance coefficients
+              , 'eps.i' #random site intercept in abundance
+              , 'p' #estimate of detection probability
+              , 'y_hat' #predicted observations
+              , 'N' #estimates of abundance
+              , 'fit' #estimate of fit for observed data
+              , 'fit.new' #estimate of fit for predicted data
+)
+
+#call JAGS and summarize posteriors:
+m4 <- autojags( win.data, inits = inits, params, modelname, #
+                n.chains = 5, n.thin = 10, n.burnin = 20000,
+                iter.increment = 10000, max.iter = 500000, 
+                Rhat.limit = 1.05,
+                save.all.iter = FALSE, parallel = TRUE ) 
+
+#how many iterations to converge?
+m4$mcmc.info$n.samples
+#view
+plot(m4)
+#calculate chat
+mean( m4$mean$fit ) / mean( m4$mean$fit.new )
+#plot Bayesian p value
+plot( x = m4$sims.list$fit, y = m4$sims.list$fit.new )
+
+###### end m4 ########
 
 
 ############################################################################
