@@ -65,15 +65,15 @@ head( robdf ); dim( robdf )
 
 #collapse wide presences and observer ids into long format:
 longdf <- robdf %>% pivot_longer( cols = contains("j"), 
-                                         names_to = c(".value", "survey"),
-                                         names_pattern = "(.+).(.+)" )
+                       names_to = c(".value", "survey"),
+                       names_pattern = "(.+).(.+)" )
 
 #check
 head( longdf );dim(longdf )
 # Arrange columns in the correct order for unmarked fomatMult() function:
 longdf <- longdf %>% select( year, o.sites, survey, pres =  pres., 
-                             cheatgrass, sagebrush, Feb.minT, AprMay.maxT,
-                             observer = observer. ) 
+                 cheatgrass, sagebrush, Feb.minT, AprMay.maxT,
+                   observer = observer. ) 
 # Use formatMulti to get data in correct format for robust analysis:
 umf <- formatMult( longdf )
 #view

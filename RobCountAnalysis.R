@@ -30,6 +30,7 @@ getwd()
 
 # load packages:
 library( tidyverse )#includes dplyr, tidyr and ggplot2
+options( dplyr.width = Inf, dplyr.print_min = 100 )
 library( unmarked ) #analyze count and occupancy data
 library( AICcmodavg) #gof tests (Duarte et al. 2018)
 library( nmixgof ) #more gof tests (Knape et al. 2018)
@@ -152,42 +153,46 @@ summary( umf )
 # check the unmarked manual for further details. #
 
 # Initial abundance is always: N[1,t] ~ Poisson(lambda) #
+# if dynamics = "autoreg", "constant", or "notrend" we are fitting different 
+# versions of the Dale, Madsen (2011) model:
 # Survivors can be estimated from a Binomial process as density-dependent:
 # S[i,t+1] ~ Binomial( N[i,t], omega ), where omega represents apparent survival
-# if dynamics = "autoreg":
-# Recruits can be related to previous abundance, or density-dependent as:
+# Recruits can be related to previous abundance and be density-dependent:
 # R[i,t+1] ~ Poisson( N[i,t] * gamma ), where gamma represents per-capita recruitment
-# Note that under this second option, extinct sites (N[i,t]=0) cannot experience 
-# recruitment (i.e, cannot be rescued).
+# Note that extinct sites (N[i,t]=0) cannot experience recruitment
+#(i.e, cannot be rescued).
+
 # OR:
-# if dynamics = 'constant':
-# R[i,t+1] ~ Poisson( gamma ), where gamma becomes constant recruitment rate
-#
+
+# Dynamics can also be modeled as density-dependent in two other ways:
+# where gamma is maximum instantaneous population growth rate (r) and 
+# omega is equilibrium abundance (normally termed K).
+# dynamics ="ricker":
+# (1) Ricker where N[i,t] = N[i,t-1] * exp( gammma * (1 - N[i,t-1] / omega ) ), OR
+# dynamics ="gompertz":
+# (2) Gompertz where N[i,t] = N[i,t-1] * exp( gamma * ( 1 - log( N[i,t-1] + 1 ) /
+#     log( omega + 1) ) )
+
 # If dynamics = "notrend": lambda * (1-omega) so there is no gamma or temporal trend 
 # If dynamics = "trend": then population growth is models as exponential growth:
 # N[i,t] = N[i,t-1] * gamma, where gamma is finite rate of increase (normally #
 # referred to as lambda ).
-# Dynamics can also be modeled as density-dependent in two other ways:
-# where gamma is maximum instantaneous population growth rate (r) and 
-# omega is equilibrium abundance (normally termed K).
-# (1) Ricker where N[i,t] = N[i,t-1] * exp( gammma * (1 - N[i,t-1] / omega ) ), OR
-# (2) Gompertz where N[i,t] = N[i,t-1] * exp( gamma * ( 1 - log( N[i,t-1] + 1 ) /
-#     log( omega + 1) ) )
 
-# Let's start with a simple model
-fm.0 <- pcountOpen( #lambda formula for initial abundance:
+# Let's start with a Dale and Madsen (2011) formulation assuming N[t]|N[t-1]
+fm.0 <- pcountOpen( 
+  #lambda formula for abundance in year 1:
   lambdaformula = ~1, 
-  #gamma is modeled as lambda * ( 1 - omega)
+  #recruitment rate
   gammaformula = ~1, 
-  #omega 
+  #survival probability 
   omegaformula = ~1, 
   #detection formula:
   pformula = ~1, 
-  #no trend
+  # assume N[t]|N[t-1]:
   dynamics = 'autoreg', 
-  #Define the maximum possible abundance
-  K = 80,
-  # don't calculate standard errors, which makes it run faster:
+  #Define the maximum possible abundance(> max(counts)):
+  K = 300,
+  # don't calculate standard errors for your first run:
   se = FALSE, #useful for the first run
   # set distribution as Poisson:
   mixture = "P", #NB or ZIP also possible 
@@ -201,42 +206,19 @@ fm.0 <- pcountOpen( #lambda formula for initial abundance:
 # View model results:
 fm.0
 
-# We now run a dynamic count model from Dail-Madsen (2011) model. #
-fm.dyn0 <- pcountOpen( #lambda formula for abundance in year 1 only:
-  lambdaformula = ~1, 
-  #gamma is recruitment rate
-  gammaformula = ~1, 
-  #omega is survival probability 
-  omegaformula = ~1,
-  #detection formula:
-  pformula = ~1,  #
-  #trend
-  dynamics = 'constant', 
-  #upper bound of discrete integration. Should be higher than the maximum 
-  #observed count and high enough that it does not affect #
-  #parameter estimates 
-  K = 80,
-  #for the first run turn off calculation of standar errors
-  se = FALSE, 
-  #more complicated models allow immigration to be split 
-  # from births # we don't enable that here
-  immigration = FALSE, 
-  #here you provide your unmarked dataframe
-  data = umf, 
-  control = list( trace = TRUE, REPORT = 1) )
-#view
-fm.dyn0
-
 # We rerun the model above by adding predictors. 
 # The model is hard to fit so we start with an intercept only version #
 # and we also start without calculating standard errors.#
 fm.dyn <- pcountOpen( #lambda formula for initial abundance:
   lambdaformula = ~1, 
+  #recruitment rate
   gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT, 
+  #survival probability:
   omegaformula = ~1,
+  #detection probability
   pformula = ~1 + time,
-  dynamics = 'constant', 
-  K = 80, 
+  dynamics = 'autoreg', 
+  K = 300, 
   se = FALSE, 
   immigration = FALSE,
   data = umf, 
@@ -253,8 +235,8 @@ inits <- coef( fm.dyn )
 fm.dynSE <- pcountOpen( lambdaformula = ~1, 
         gammaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT,
         omegaformula = ~1,  pformula = ~1 + time, 
-        dynamics = 'constant', 
-        K = 80, se = TRUE, data = umf,
+        dynamics = 'autoreg', 
+        K = 300, se = TRUE, data = umf,
         control = list( trace = TRUE, REPORT = 1), starts = inits )
 
 #define which model you want to view
@@ -286,30 +268,6 @@ confint( fm, type = 'det' )
 # Answer:
 #
 
-# For homework adjust the model by putting the predictors on recruitment
-# instead of survival Keep SE = FALSE for comparison. 
-fm.omega <- pcountOpen( #lambda formula for initial abundance:
-  lambdaformula = ~1, 
-  gammaformula = ~1, 
-  omegaformula = ~1 + sagebrush + Feb.minT + AprMay.maxT,
-  pformula = ~1 + time,
-  dynamics = 'constant', 
-  K = 80, 
-  se = FALSE, 
-  immigration = FALSE,
-  data = umf, 
-  control = list( trace = TRUE, REPORT = 1) )
-
-# View model results:
-fm.omega
-
-# How did this change influence results?
-# Answer:
-#
-
-### Note that these models are not running on some students computers so you 
-# can request the workspace from Jen Cruz to make those comparisons if that #
-# is the case ####
 
 #############end full model ###########
 ##########################################################################
@@ -424,7 +382,7 @@ maxTp
 ################## Save your data and workspace ###################
 
 # Save workspace:
-save.image( "RobCountResults.RData" )
+save.image( "RobCountResults2026.RData" )
 
 #save the plot objects you need for your presentation
 #start by calling the file where you will save it
