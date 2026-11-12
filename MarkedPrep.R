@@ -28,6 +28,7 @@ getwd()
 
 # load packages:
 library( tidyverse ) 
+options( dplyr.width = Inf, dplyr.print_min = 100 )
 ## end of package load ###############
 ###################################################################
 #### Load or create data -----------------------------------------

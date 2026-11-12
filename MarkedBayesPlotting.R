@@ -24,10 +24,7 @@ load( "MarkedResultsJAGs2.RData" )
 ################################################################################
 #################### viewing model results ####################################
 ##################################################################################
-
-#start by quickly comparing model results
-summary(m1); summary(m2)
-
+#start by comparing results for both models:
 ############## whisker plots #############
 par( mfrow = c( 2,1 ), ask = F , mar = c(3,4,2,2) )
 #for detection
@@ -45,6 +42,11 @@ whiskerplot( m2, parameters = c( "N" ) )
 whiskerplot( m1, parameters = c( "eps.i" ) )
 whiskerplot( m2, parameters = c( "eps.i" ) )
 
+### what are the main differences between the two models?
+# which would you choose and why?
+# Answer: 
+#
+
 # calculate Bayesian p values 
 #m1 model:
 mean(m1$sims.list$fit1_hat > m1$sims.list$fit1 )
@@ -52,8 +54,18 @@ mean(m1$sims.list$fit1_hat > m1$sims.list$fit1 )
 mean(m2$sims.list$fit1_hat > m2$sims.list$fit1 )
 mean(m2$sims.list$fit2_hat > m2$sims.list$fit2 )
 
+# Now that you see the Bayesian p values, is your model 
+# still the same?
+# Answer:
+#
+#look back at the code and determine if you can 
+# make additional changes to improve the model that you 
+# did not select. What would those changes be?
+# Answer:
+# 
+
 #choose model going forward
-mr <- m2
+mr <- m1
 #derived parameters
 
 ##################################################################
@@ -190,7 +202,7 @@ ggplot( data = p.preds, aes( x = Raw, y = Mean ) ) +
               scales = "free_x", ncol = 3,
               strip.position = "bottom" )
 
-#### Now replot these for the other model that we run. How do they differ?
+#### Interpret these results:
 # Answer:
 # 
 #

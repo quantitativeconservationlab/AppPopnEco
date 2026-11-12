@@ -14,6 +14,7 @@
 ##### Set up your workspace and load relevant packages -----------
 # load packages:
 library( tidyverse ) 
+options( dplyr.width = Inf, dplyr.print_min = 100 )
 #library( sf )
 library( jagsUI )
 ## end of package load ###############
@@ -199,7 +200,6 @@ m1 <- autojags( win.data, inits = inits, params, modelname, #
 #                    n.iter = 500000, n.thin = nt)
 #
 plot(m1)
-summary(m1)
 
 ###### end m1 ########
 ###########################################################################
@@ -385,7 +385,6 @@ m2 <- autojags( win.data, inits = inits, params, modelname, #
 #                     n.iter = 500000, n.thin = nt)
 
 plot(m2)
-summary(m2)
 
 ###### end m2 ########
 

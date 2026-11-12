@@ -41,12 +41,12 @@ head( closeddf ); dim( closeddf )
 #number of sites:
 I <- length( closeddf$o.sites )
 #number of visits
-J = 3
+J <- 3
 
 #Create a new dataframe to scale predictors starting with site level predictors #
 XI <- closeddf %>% 
-  select( cheatgrass, sagebrush ) %>% 
-  mutate( cheatgrass = scale( cheatgrass),
+  dplyr::select( cheatgrass, sagebrush ) %>% 
+  dplyr::mutate( cheatgrass = scale( cheatgrass),
           sagebrush = scale( sagebrush) )
 
 #for sitexvisit predictor we create separate objects for each 
@@ -493,8 +493,8 @@ plot( x = m3$sims.list$fit, y = m3$sims.list$fit.new )
 ####### m4 single season N-mixture abundance model    #
 # ecological predictors: cheatgrass and sagebrush as fixed effects #
 # detection predictors: time as quadratic fixed effect   #
-#     observer as random intercept to account for technician differences #
-#     site as random intercept to account for over-dispersion in detection #
+# observer as random intercept to account for technician differences #
+#  site as random intercept to account for over-dispersion in detection #
 ############################################################################
 ############## Specify model in bugs language:  #####################
 sink( "m4.txt" )
@@ -607,7 +607,7 @@ m4 <- autojags( win.data, inits = inits, params, modelname, #
                 save.all.iter = FALSE, parallel = TRUE ) 
 
 #how many iterations to converge?
-m4$mcmc.info$n.samples
+m4$mcmc.info$n.iter
 #view
 plot(m4)
 #calculate chat
